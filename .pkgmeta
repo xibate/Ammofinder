@@ -1,0 +1,9 @@
+package-as: AmmoFinder
+
+move-folders:
+  AmmoFinder/AmmoFinder: AmmoFinder
+
+ignore:
+  - README.md
+  - tools
+  - tests

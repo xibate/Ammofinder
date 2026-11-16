@@ -1,0 +1,14 @@
+## Interface: 11509
+## Title: AmmoFinder
+## Notes: Tells you when there is an ammo vendor where you are (towns, cities) and points you to them with a map waypoint.
+## IconTexture: Interface\AddOns\AmmoFinder\Media\Icon
+## X-Category: Hunter, Map & Minimap
+## X-Website: https://github.com/xibate/Ammofinder
+## Author: Xibate
+## Version: 0.4.0
+## DefaultState: enabled
+## SavedVariables: AmmoFinderDB
+Data.lua
+Theme.lua
+Options.lua
+AmmoFinder.lua

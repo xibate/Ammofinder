@@ -1,0 +1,7 @@
+{
+  "name": "ammofinder-tests",
+  "private": true,
+  "description": "Runs AmmoFinder against a mock of the WoW API in fengari (Lua in JavaScript)",
+  "scripts": { "test": "node run.js" },
+  "dependencies": { "fengari": "0.1.4" }
+}
