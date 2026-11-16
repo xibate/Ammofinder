@@ -5,5 +5,4 @@ move-folders:
 
 ignore:
   - README.md
-  - tools
   - tests

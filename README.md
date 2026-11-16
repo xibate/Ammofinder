@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src=".github/icon.png" alt="AmmoFinder icon" width="128">
+<img src=".github/icon.jpg" alt="AmmoFinder icon" width="64">
 
 # AmmoFinder
 
@@ -77,7 +77,7 @@ The game loads the right `.toc` file for the client you are playing on.
 ## Development
 
 - `AmmoFinder/` is the addon folder. `Data.lua` has the vendors and ammo, `AmmoFinder.lua` the banner and logic, `Options.lua` the settings and `Theme.lua` the look, shared with Crescendo and Easy Delete.
-- `node tools/gen_icons.js` redraws `AmmoFinder/Media/Icon.tga` and `.github/icon.png`.
+- The icon is the game's own `Interface\Icons\INV_Ammo_Arrow_02`, so the addon ships no textures. `.github/icon.jpg` is the same icon from Wowhead, for this README.
 - `cd tests && npm install && npm test` runs the addon against a mock of the WoW API. It does not replace trying it in game.
 - Releases: run *Publish Addon to CurseForge* from the Actions tab, or push a tag like `v0.4.0` matching `## Version` in `AmmoFinder/AmmoFinder.toc`. It needs a `CF_API_KEY` secret and a `## X-Curse-Project-ID` line in the `.toc` files once the CurseForge project exists.
 
@@ -91,7 +91,7 @@ The game loads the right `.toc` file for the client you are playing on.
 - More room around the **Point me there** button: the banner now grows to fit its text, with a clear gap above and below the button.
 - The banner sits lower by default so it no longer covers the zone name.
 - Removed Mazk Snipeshot (Booty Bay): Wowhead does not list him selling any ammo.
-- New icon, and the repository set up like the other addons: `.pkgmeta`, release workflow, Classic Era `.toc`.
+- The game's arrow icon (`INV_Ammo_Arrow_02`) in the AddOns list and settings, and the repository set up like the other addons: `.pkgmeta`, release workflow, Classic Era `.toc`.
 
 ### 0.3.0
 - New banner: icon, gold title, divider, vendor and area line, ammo count line, and a **Point me there** button.

@@ -5,7 +5,7 @@ local folder, ns = ...
 --for on the right. Every change applies straight away
 
 local theme = ns.theme
-local MEDIA = "Interface\\AddOns\\AmmoFinder\\Media\\"
+local ICON = "Interface\\Icons\\INV_Ammo_Arrow_02"
 local COLUMN_W = 280
 local COLUMN_GAP = 32
 local CONTENT_W = 2 * COLUMN_W + COLUMN_GAP
@@ -206,7 +206,8 @@ local function CreateWindow()
     local logo = window:CreateTexture(nil, "ARTWORK")
     logo:SetSize(20, 20)
     logo:SetPoint("TOPLEFT", 16, -12)
-    logo:SetTexture(MEDIA .. "Icon")
+    logo:SetTexture(ICON)
+    logo:SetTexCoord(0.07, 0.93, 0.07, 0.93)
     local name = ns:Text(window, 14)
     name:SetPoint("LEFT", logo, "RIGHT", 8, 0)
     name:SetText("AmmoFinder")
@@ -251,7 +252,8 @@ function ns:AddSettingsPage()
     local logo = panel:CreateTexture(nil, "ARTWORK")
     logo:SetSize(24, 24)
     logo:SetPoint("TOPLEFT", 16, -16)
-    logo:SetTexture(MEDIA .. "Icon")
+    logo:SetTexture(ICON)
+    logo:SetTexCoord(0.07, 0.93, 0.07, 0.93)
     local name = ns:Text(panel, 16)
     name:SetPoint("LEFT", logo, "RIGHT", 10, 0)
     name:SetText("AmmoFinder")
