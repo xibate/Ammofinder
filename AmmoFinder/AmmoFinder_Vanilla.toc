@@ -5,7 +5,7 @@
 ## X-Category: Hunter, Map & Minimap
 ## X-Website: https://github.com/xibate/Ammofinder
 ## Author: Xibate
-## Version: 0.5.0
+## Version: 0.5.2
 ## DefaultState: enabled
 ## SavedVariables: AmmoFinderDB
 Data.lua

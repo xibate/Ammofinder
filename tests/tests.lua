@@ -45,7 +45,7 @@ ok(not Enter(1453, "Trade District", 0.5, 0.57), "no announce without ranged wea
 -- Bow in Stormwind
 M.ranged = 1000
 ok(Enter(1453, "Trade District", 0.5, 0.57), "bow in Stormwind shows banner")
-ok(banner.button:IsShown(), "button shown")
+ok(banner.secure:IsShown() and not banner.button:IsShown(), "secure button shown")
 ok(hold.duration == 6, "hold uses duration setting")
 -- Spacing: ammo line bottom to button top
 local textH = 20 + 3 + 2 + 5 + 16 + 6 + 12
@@ -154,7 +154,7 @@ sliders[2]:SetValue(30)
 ok(db.cooldown == 30, "cooldown slider")
 SlashCmdList.AMMOFINDER("test")
 ok(banner:IsShown() and banner.preview, "/ammo test previews")
-banner.button:Click()
+banner.secure.scripts.PostClick(banner.secure)
 ok(not banner:IsShown(), "preview button just closes")
 
 
@@ -176,35 +176,49 @@ ok(not ns.IsBannerUnlocked(), "/ammo move locks again")
 SlashCmdList.AMMOFINDER("reset")
 ok(db.bannerX == 0 and db.bannerY == 260, "/ammo reset")
 
--- Marking the vendor
+-- Point me there: secure, sets the waypoint and marks
+local function NL_JOIN(...) return table.concat({ ... }, string.char(10)) end
 db.markIcon = 1
 db.ammoFilter = "any"
 db.cooldown = 0
+local sb = banner.secure
 Enter(1453, "Trade District", 0.5, 0.57)
 local name = banner.vendor.name
 ok(banner.sub.text:find("UI%-RaidTargetingIcon_1") ~= nil, "banner shows the marker")
-M.units.mouseover = { name = "Some Guard" }
-M.Fire("UPDATE_MOUSEOVER_UNIT")
-ok(M.marks.mouseover == nil, "other NPC not marked")
-M.units.mouseover = { name = name }
-M.Fire("UPDATE_MOUSEOVER_UNIT")
-ok(M.marks.mouseover == 1, "vendor marked on mouseover")
-M.units.target = { name = name }
-db.markIcon = 8
-M.Fire("PLAYER_TARGET_CHANGED")
-ok(M.marks.target == 8, "vendor marked on target with chosen icon")
-M.marks = {}
-M.raid = true
-M.Fire("PLAYER_TARGET_CHANGED")
-ok(M.marks.target == nil, "no marking in a raid")
-M.raid = false
-M.units.target = { name = name, player = true }
-M.Fire("PLAYER_TARGET_CHANGED")
-ok(M.marks.target == nil, "players never marked")
+ok(sb:IsShown() and sb.parent == UIParent and not banner.button:IsShown(), "secure Point me there replaces the plain one")
+ok(sb.attrs.type == "macro" and sb.attrs.macrotext == NL_JOIN("/cleartarget", "/target " .. name, "/tm [exists] 1"), "macro: " .. tostring(sb.attrs.macrotext))
+ok(sb.text:find("Point me there") and sb.text:find("RaidTargetingIcon_1"), "label: " .. sb.text)
+local sp = sb.points[#sb.points]
+ok(sp[1] == "TOP" and sp[2] == UIParent and sp[4] == 0 and sp[5] == -(260 + banner.h - 16 - 26), "secure button sits in the button row")
+M.waypoint = nil
+sb.scripts.PostClick(sb)
+ok(M.waypoint and M.waypoint.uiMapID == 1453, "click sets the waypoint too")
+ok(not banner:IsShown() and not sb:IsShown(), "click dismisses banner and button")
 db.markIcon = 0
-M.units.target = { name = name }
-M.Fire("PLAYER_TARGET_CHANGED")
-ok(M.marks.target == nil, "marker off")
+Enter(1453, "Trade District", 0.5, 0.57)
+ok(sb:IsShown() and sb.attrs.type == nil and sb.text == "Point me there", "marker off: waypoint only, no macro")
+SecureCmdList.TARGET_MARKER = nil
+db.markIcon = 2
+Enter(1453, "Trade District", 0.5, 0.57)
+ok(sb.attrs.type == nil, "no macro on clients without /tm")
+SecureCmdList.TARGET_MARKER = function() end
+Enter(1453, "Trade District", 0.5, 0.57)
+M.Fire("PLAYER_REGEN_DISABLED")
+ok(not sb:IsShown() and banner.button:IsShown(), "combat start swaps to the plain button")
+M.combat = true
+local okHide = pcall(function() banner.anim.scripts.OnFinished() end)
+ok(okHide and not banner:IsShown(), "banner can still hide in combat")
+Enter(1453, "Trade District", 0.5, 0.57)
+ok(banner:IsShown() and not sb:IsShown() and banner.button:IsShown(), "in combat: plain button")
+M.combat = false
+ns.UnlockBanner()
+ok(not sb:IsShown() and banner.button:IsShown(), "move mode: plain button (locks)")
+ns.LockBanner()
+ns.PreviewBanner()
+ok(sb:IsShown() and sb.attrs.type == nil, "preview: no macro")
+M.waypoint = nil
+sb.scripts.PostClick(sb)
+ok(M.waypoint == nil and not banner:IsShown(), "preview click only closes")
 local markButtons = Find(content, function(f) return f.kind == "Button" and f.scripts.OnClick and f.w == 22 and f.h == 22 end)
 ok(#markButtons == 8, "8 marker buttons, got " .. #markButtons)
 markButtons[8]:Click()
@@ -230,5 +244,31 @@ ok(onlyLow ~= nil, "only when low checkbox exists")
 onlyLow:Click()
 ok(db.onlyLow == true, "checkbox turns it on")
 db.onlyLow = false
+
+-- Both halves of the click: only the one matching "cast on key down" acts
+db.markIcon, db.onlyLow, db.cooldown = 1, false, 0
+local sb2 = banner.secure
+M.keyDown = true
+Enter(1453, "Trade District", 0.5, 0.57)
+ok(sb2.attrs.type == "macro", "macro set")
+M.waypoint = nil
+sb2.scripts.PostClick(sb2, "LeftButton", false)
+ok(M.waypoint == nil and sb2:IsShown(), "key down on: the up half does nothing")
+M.targetName = banner.vendor.name
+M.printed = {}
+sb2.scripts.PostClick(sb2, "LeftButton", true)
+ok(M.waypoint ~= nil and not sb2:IsShown(), "key down on: the down half acts")
+ok(table.concat(M.printed, " "):find("Targeted and marked"), "reports the mark")
+M.keyDown = false
+Enter(1453, "Trade District", 0.5, 0.57)
+M.targetName = nil
+M.printed = {}
+sb2.scripts.PostClick(sb2, "LeftButton", true)
+ok(sb2:IsShown(), "key down off: the down half does nothing")
+sb2.scripts.PostClick(sb2, "LeftButton", false)
+ok(not sb2:IsShown() and table.concat(M.printed, " "):find("Couldn't target"), "reports when the vendor wasn't targeted")
+M.printed = {}
+local okDebug, err = pcall(SlashCmdList.AMMOFINDER, "debug")
+ok(okDebug and #M.printed >= 5, "/ammo debug prints: " .. tostring(err))
 
 io.write(("%d passed, %d failed" .. string.char(10)):format(passed, failed))

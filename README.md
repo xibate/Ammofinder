@@ -19,7 +19,7 @@ Running out of arrows or bullets in the middle of nowhere is a hunter rite of pa
 - **A banner when you arrive.** The vendor's name and area, your ammo count, and a **Point me there** button that sets a map waypoint (or type `/ammo go`).
 - **Only the ammo you use.** Bows and crossbows get arrow vendors, guns get bullet vendors. Nothing shows without a ranged weapon, unless you want it to.
 - **Only the ammo you want.** Any ammo for your weapon, only the best ammo for your level (Rough, Sharp, Razor, Jagged Arrows; Light, Heavy, Solid Shot, Accurate Slugs), or exactly the kinds you tick.
-- **Spot the vendor.** The vendor gets a raid marker (star by default) as soon as you mouse over or target them, so they stand out in a busy city.
+- **Mark the vendor.** **Point me there** also targets the vendor and puts a raid marker (star by default) on them, so they stand out in a busy city.
 - **Put it where you like.** Drag the banner anywhere on screen.
 - **Low ammo warning.** The banner turns red and says *Low on Ammo!* or *Out of Ammo!* below a count you choose. Or only hear about vendors when you are running low.
 - **No spam.** The same town is not announced again for a while (10 minutes by default, your choice).
@@ -39,7 +39,7 @@ Type `/ammo`, or open *Options > AddOns > AmmoFinder*.
 | Low ammo warning below | 200 | Below this count the banner turns red. 0 turns the warning off |
 | Only announce when below this | off | Stay quiet while you have enough ammo, and only announce vendors once you are below the low ammo count |
 | Move banner / Reset position | below the zone text | Unlocks the banner so you can drag it anywhere. Right-click it or click *Lock banner* when it's in place |
-| Mark the vendor | star | Raid marker put on the vendor when you target or mouse over them, or their nameplate shows. *Off*, or star to skull. Never in a raid |
+| Mark the vendor | star | Raid marker **Point me there** puts on the vendor (it targets them to do so): *Off*, or star to skull |
 | Which ammo | Any ammo for my weapon | *Any ammo for my weapon*, *Only the best ammo for my level*, or *Only the ammo I tick below* |
 
 **Show a test banner** (or `/ammo test`) shows an example banner, to try out the length and position.
@@ -57,6 +57,7 @@ Type `/ammo`, or open *Options > AddOns > AmmoFinder*.
 | `/ammo on` / `off` | Turn AmmoFinder on or off |
 | `/ammo banner` / `chat` / `sound` / `always` | Toggle those settings |
 | `/ammo list` | List the vendors you have learned |
+| `/ammo debug` | Show what the marking depends on, for bug reports |
 
 ## Supported game versions
 
@@ -89,10 +90,18 @@ The game loads the right `.toc` file for the client you are playing on.
 
 ## Changelog
 
+### 0.5.2
+- Fixed: Point me there didn't target or mark. Since the 10.0 engine a secure button only acts on the half of the click matching the "cast on key down" setting, and it was registered for mouse-up only.
+- After the click, chat says whether the vendor was targeted and marked, or that they are too far away.
+- `/ammo debug` shows whether this client has /tm, the key down setting, and the macro the button runs.
+
+### 0.5.1
+- Fixed: marking the vendor called SetRaidTarget from addon code, which WoW Forever blocks (ADDON_ACTION_FORBIDDEN, and a secret-value error). Marking now happens when you click **Point me there**, through a secure button.
+
 ### 0.5.0
 - Only announce when low: a setting under the low ammo count that keeps AmmoFinder quiet until you have less than that.
 - Move the banner: *Move banner* in the settings (or `/ammo move`) lets you drag it anywhere. *Reset position* or `/ammo reset` puts it back.
-- Mark the vendor: the vendor the banner points at gets a raid marker (star by default) when you target or mouse over them, so they stand out in a crowd. The banner shows the same marker next to their name.
+- Mark the vendor: **Point me there** also targets the vendor and puts a raid marker on them (star by default, or pick one, or off). Out of combat it is a secure button, because WoW only lets a real click target or mark; in combat it only sets the waypoint.
 
 ### 0.4.0
 - Settings window (`/ammo`) and a page in *Options > AddOns*, in the style of Crescendo and Easy Delete.

@@ -186,7 +186,7 @@ local function BuildContent(parent)
     local markNote = Place(ns:Text(content, 11, theme.dim), x, y)
     markNote:SetWidth(COLUMN_W)
     markNote:SetWordWrap(true)
-    markNote:SetText("Put on the vendor when you target or mouse over them. Not in raids.")
+    markNote:SetText("Clicking Point me there also targets the vendor and puts this marker on them.")
 
     local commands = Place(ns:Text(content, 11, theme.section), 0, -(CONTENT_H - 16))
     commands:SetWidth(CONTENT_W)

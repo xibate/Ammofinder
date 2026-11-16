@@ -19,7 +19,7 @@ local DEFAULTS = {
     cooldown = 10,       -- minutes before the same town is announced again (0 = every time)
     bannerX = 0,         -- banner offset from the middle of the screen (set by dragging it, /ammo move)
     bannerY = 260,       -- banner distance from the top of the screen, below the game's zone text
-    markIcon = 1,        -- raid marker put on the vendor when you target or mouse over them (1 star .. 8 skull, 0 off)
+    markIcon = 1,        -- raid marker Point me there puts on the vendor (1 star .. 8 skull, 0 off)
     lowAmmo = 200,       -- warn when the equipped ammo stack is below this
     onlyLow = false,     -- only announce vendors when you have less than lowAmmo
     ammoFilter = "any",  -- "any": any ammo for the weapon, "best": the best ammo for your level, "custom": ammoItems
@@ -263,6 +263,123 @@ banner.button:SetScript("OnLeave", function()
     if banner.paused then banner.paused = false; banner.anim:Play() end
 end)
 
+---------------------------------------------------------------------------
+-- Point me there, the secure version: sets the waypoint and also targets and marks the vendor
+---------------------------------------------------------------------------
+
+-- Targeting and raid markers are protected: only a real click on one of the game's secure buttons may do them. So out
+-- of combat Point me there is a secure button that runs a macro (/target the vendor, then /tm) and sets the waypoint
+-- after the click. It is not a child of the banner and not anchored to it, or the banner would become protected too
+-- and could not show or fade in combat. Secure frames can't be changed in combat, so it is only shown out of combat
+-- and hidden the moment combat starts; then the plain button above is used, which only sets the waypoint.
+local secure = CreateFrame("Button", "AmmoFinderPointButton", UIParent, "SecureActionButtonTemplate, UIPanelButtonTemplate")
+secure:SetSize(BUTTON_W, BUTTON_H)
+secure:SetFrameStrata("HIGH")
+secure:SetFrameLevel(banner:GetFrameLevel() + 10)
+-- Since the 10.0 engine (which Forever and Classic run on) a secure button only acts on the half of the click that
+-- matches the "cast on key down" setting (ActionButtonUseKeyDown, on by default) and ignores the other. Registered
+-- for up only, the macro never ran. With both registered it runs once, on whichever half the setting picks
+secure:RegisterForClicks("LeftButtonUp", "LeftButtonDown")
+secure:Hide()
+banner.secure = secure
+
+secure.anim = secure:CreateAnimationGroup()
+local sFadeIn = secure.anim:CreateAnimation("Alpha")
+sFadeIn:SetFromAlpha(0); sFadeIn:SetToAlpha(1); sFadeIn:SetDuration(0.5); sFadeIn:SetOrder(1)
+local sHold = secure.anim:CreateAnimation("Alpha")
+sHold:SetFromAlpha(1); sHold:SetToAlpha(1); sHold:SetDuration(DEFAULTS.duration); sHold:SetOrder(2)
+local sFadeOut = secure.anim:CreateAnimation("Alpha")
+sFadeOut:SetFromAlpha(1); sFadeOut:SetToAlpha(0); sFadeOut:SetDuration(1.2); sFadeOut:SetOrder(3)
+
+-- Whether this client has /tm (target marker)
+local function HasTargetMarker()
+    return (SecureCmdList and SecureCmdList.TARGET_MARKER ~= nil) or _G.SLASH_TARGET_MARKER1 ~= nil
+end
+
+local function HideSecure()
+    if InCombatLockdown() then return end
+    secure.anim:Stop()
+    secure:Hide()
+end
+
+-- Shows the secure button in the banner's button row for vendor v. Returns whether it is shown; when it isn't, the
+-- plain button is used
+function ns.ShowSecure(v, label, preview, height)
+    if InCombatLockdown() or banner.unlocked or not v then
+        HideSecure()
+        return false
+    end
+    local icon = db.markIcon or 0
+    local mark = icon > 0 and HasTargetMarker()
+    local hasCoords = v.x ~= nil and v.y ~= nil
+    if not hasCoords and not mark then
+        HideSecure()
+        return false
+    end
+    -- /cleartarget first, so that when the vendor is out of range the marker doesn't land on your old target
+    local macro = mark and not preview and ("/cleartarget\n/target %s\n/tm [exists] %d"):format(v.name, icon) or nil
+    secure:SetAttribute("type", macro and "macro" or nil)
+    secure:SetAttribute("macrotext", macro)
+    if not hasCoords then label = "Mark vendor" end
+    secure:SetText(mark and ("|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_%d:0|t %s"):format(icon, label) or label)
+    secure.vendor, secure.marks, secure.preview = v, mark, preview
+    secure:ClearAllPoints()
+    secure:SetPoint("TOP", UIParent, "TOP", db.bannerX or 0, -((db.bannerY or DEFAULTS.bannerY) + height - PAD - BUTTON_H))
+    sHold:SetDuration(hold:GetDuration())
+    secure.anim:Stop()
+    secure:SetAlpha(0)
+    secure:Show()
+    secure.anim:Play()
+    return true
+end
+
+secure.anim:SetScript("OnFinished", HideSecure)
+banner:HookScript("OnHide", HideSecure)
+-- After the macro: the waypoint, then the banner goes
+-- The half of the click the secure button acts on (see RegisterForClicks above)
+local function ActsOnDown()
+    if GetCVarBool then return GetCVarBool("ActionButtonUseKeyDown") == true end
+    return false
+end
+
+secure:SetScript("PostClick", function(self, _, down)
+    -- Only on the same half as the macro: hiding the button on the other half would stop the macro from running
+    if (down and true or false) ~= ActsOnDown() then return end
+    local v = self.vendor
+    if not self.preview and v then
+        if self.marks then
+            -- The macro has run by now: say whether the vendor ended up targeted
+            local name = safe(UnitName("target"))
+            if name == v.name then
+                print_(("Targeted and marked %s."):format(v.name))
+            elseif name == nil and UnitExists("target") then
+                print_(("Tried to target and mark %s."):format(v.name)) -- name hidden from addons, can't tell
+            else
+                print_(("Couldn't target %s from here. Get closer and click again, or type |cffffff00/target %s|r.")
+                    :format(v.name, v.name))
+            end
+        end
+        if v.x then SetWaypoint(v) end
+    end
+    Dismiss()
+end)
+secure:HookScript("OnEnter", function(self)
+    if GameTooltip and self.vendor then
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:SetText(self.vendor.x and ("Sets a map waypoint to " .. self.vendor.name) or self.vendor.name)
+        if self.marks then
+            GameTooltip:AddLine("Also targets them and puts your marker on them, when they are close enough to see.",
+                1, 1, 1, true)
+        end
+        GameTooltip:Show()
+    end
+    if banner.anim.Pause then banner.anim:Pause(); secure.anim:Pause(); banner.paused = true end
+end)
+secure:HookScript("OnLeave", function()
+    if GameTooltip then GameTooltip:Hide() end
+    if banner.paused then banner.paused = false; banner.anim:Play(); secure.anim:Play() end
+end)
+
 function ns.ApplyBannerPosition()
     banner:ClearAllPoints()
     banner:SetPoint("TOP", UIParent, "TOP", db and db.bannerX or DEFAULTS.bannerX, -(db and db.bannerY or DEFAULTS.bannerY))
@@ -369,10 +486,15 @@ local function ShowBanner(v, count, wanted, sells, preview)
     banner.ammo:SetText(ammoLine or "")
 
     local hasCoords = v.x ~= nil and v.y ~= nil
-    banner.button:SetText(low and "Restock: point me there" or "Point me there")
-    banner.button:SetShown(hasCoords)
-    Layout(hasCoords)
+    local label = low and "Restock: point me there" or "Point me there"
+    banner.button:SetText(label)
+    Layout(true)
     hold:SetDuration((db.duration or DEFAULTS.duration) + (low and LOW_EXTRA or 0))
+
+    -- Out of combat the secure button (waypoint, target and mark) takes the plain button's place
+    local usingSecure = ns.ShowSecure(v, label, preview, banner:GetHeight())
+    banner.button:SetShown(hasCoords and not usingSecure)
+    if not hasCoords and not usingSecure then Layout(false) end
 
     banner.anim:Stop()
     if banner.unlocked then
@@ -557,25 +679,6 @@ local function LearnVendor()
 end
 
 ---------------------------------------------------------------------------
--- Marking the vendor
----------------------------------------------------------------------------
-
--- Addons can't target an NPC by name, so the vendor the banner pointed at gets its raid marker the moment it is your
--- target or mouseover, or its nameplate shows. Solo the marker is only visible to you; in a party everyone sees it.
--- Never in a raid, where marks belong to the raid leader.
-local function MarkVendor(unit)
-    local icon = db and db.markIcon or 0
-    if icon == 0 or not current or not unit then return end
-    if not UnitExists(unit) or UnitIsPlayer(unit) then return end
-    if safe(UnitName(unit)) ~= current.name then return end
-    if IsInRaid and IsInRaid() then return end
-    if not (SetRaidTarget and GetRaidTargetIndex) then return end
-    if GetRaidTargetIndex(unit) == icon then return end
-    SetRaidTarget(unit, icon)
-end
-ns.MarkVendor = MarkVendor
-
----------------------------------------------------------------------------
 -- Events
 ---------------------------------------------------------------------------
 
@@ -604,7 +707,7 @@ function frame:ADDON_LOADED(name)
     self:RegisterEvent("ZONE_CHANGED")
     -- Not confirmed on every Forever build; a missing event must not break loading.
     for _, event in ipairs({ "ZONE_CHANGED_INDOORS", "MERCHANT_SHOW", "PLAYER_EQUIPMENT_CHANGED", "PLAYER_LEVEL_UP",
-        "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "NAME_PLATE_UNIT_ADDED" }) do
+        "PLAYER_REGEN_DISABLED" }) do
         pcall(self.RegisterEvent, self, event)
     end
 end
@@ -623,9 +726,13 @@ end
 function frame:PLAYER_LEVEL_UP()
     wipe(announced)
 end
-function frame:PLAYER_TARGET_CHANGED() MarkVendor("target") end
-function frame:UPDATE_MOUSEOVER_UNIT() MarkVendor("mouseover") end
-function frame:NAME_PLATE_UNIT_ADDED(unit) MarkVendor(unit) end
+-- Fires just before combat lockdown starts: the last moment the secure button may be hidden
+function frame:PLAYER_REGEN_DISABLED()
+    banner.secure.anim:Stop()
+    banner.secure:Hide()
+    -- Swap in the plain button for the rest of the banner's time on screen
+    if banner:IsShown() and banner.vendor and banner.vendor.x then banner.button:Show() end
+end
 
 frame:SetScript("OnEvent", function(self, event, ...)
     if self[event] then self[event](self, ...) end
@@ -655,6 +762,16 @@ SlashCmdList.AMMOFINDER = function(msg)
         Check(true)
     elseif cmd == "test" then
         ns.PreviewBanner()
+    elseif cmd == "debug" then
+        local yes = function(b) return b and "|cff80ff80yes|r" or "|cffff6060no|r" end
+        print_("Debug:")
+        print_("  /tm in this client: " .. yes(HasTargetMarker()) .. "  (SecureCmdList.TARGET_MARKER "
+            .. yes(SecureCmdList and SecureCmdList.TARGET_MARKER) .. ", SLASH_TARGET_MARKER1 "
+            .. tostring(_G.SLASH_TARGET_MARKER1) .. ")")
+        print_("  Cast on key down: " .. yes(ActsOnDown()) .. "   In combat: " .. yes(InCombatLockdown()))
+        print_("  Marker setting: " .. tostring(db.markIcon) .. "   Vendor: " .. (current and current.name or "none"))
+        print_("  Secure button shown: " .. yes(secure:IsShown()) .. "   type: " .. tostring(secure:GetAttribute("type")))
+        print_("  Macro: " .. tostring(secure:GetAttribute("macrotext")):gsub("\n", " | "))
     elseif cmd == "move" then
         if banner.unlocked then ns.LockBanner() else ns.UnlockBanner() end
     elseif cmd == "reset" then

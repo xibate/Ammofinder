@@ -20,9 +20,17 @@ local function New(kind, parent, name)
 end
 function Object:SetScript(k, f) self.scripts[k] = f end
 function Object:GetScript(k) return self.scripts[k] end
-function Object:HookScript(k, f) self.scripts[k] = f end
+function Object:HookScript(k, f)
+    local old = self.scripts[k]
+    self.scripts[k] = old and function(...) old(...); f(...) end or f
+end
+function Object:SetAttribute(k, v) self.attrs = self.attrs or {}; self.attrs[k] = v end
+function Object:GetAttribute(k) return self.attrs and self.attrs[k] end
 function Object:Show() self.shown = true; if self.scripts.OnShow then self.scripts.OnShow(self) end end
-function Object:Hide() self.shown = false; if self.scripts.OnHide then self.scripts.OnHide(self) end end
+function Object:Hide()
+    if self.isSecureFrame and InCombatLockdown() then error("ADDON_ACTION_BLOCKED: Hide on secure frame in combat") end
+    self.shown = false; if self.scripts.OnHide then self.scripts.OnHide(self) end
+end
 function Object:IsShown() return self.shown end
 function Object:SetShown(s) if s then self:Show() else self:Hide() end end
 function Object:SetText(t) self.text = t or "" end
@@ -56,6 +64,7 @@ function Object:CreateAnimationGroup()
     function g:CreateAnimation(kind)
         local a = New("Animation", g)
         function a:SetDuration(d) self.duration = d end
+        function a:GetDuration() return self.duration end
         table.insert(g.anims, a)
         return a
     end
@@ -77,6 +86,7 @@ function Object:Click() if self.scripts.OnClick and self.enabled then self.scrip
 function CreateFrame(kind, name, parent, template)
     local f = New(kind, parent, name)
     if template == "UIPanelButtonTemplate" then f.isPanelButton = true end
+    if template and template:find("SecureActionButtonTemplate") then f.isSecureFrame = true end
     if name then _G[name] = f end
     f.shown = not (kind == "Frame" and name ~= nil) and f.shown
     table.insert(frames, f)
@@ -91,16 +101,15 @@ SOUNDKIT = { IGQUESTLOG_OPEN = 875 }
 function wipe(t) for k in pairs(t) do t[k] = nil end return t end
 function print(...) local p = {} for i = 1, select("#", ...) do p[#p + 1] = tostring((select(i, ...))) end; table.insert(M.printed, table.concat(p, " ")) end
 function GetTime() return M.time end
-function InCombatLockdown() return false end
+function InCombatLockdown() return M.combat == true end
+SecureCmdList = { TARGET_MARKER = function() end }
 function UnitLevel() return M.level end
 function UnitFactionGroup() return M.faction end
-M.units, M.marks, M.raid = {}, {}, false
-function UnitExists(unit) return unit == "npc" or M.units[unit] ~= nil end
-function UnitName(unit) if unit == "npc" then return M.npcName end return M.units[unit] and M.units[unit].name end
-function UnitIsPlayer(unit) return M.units[unit] and M.units[unit].player or false end
-function IsInRaid() return M.raid end
-function GetRaidTargetIndex(unit) return M.marks[unit] end
-function SetRaidTarget(unit, i) M.marks[unit] = i end
+function UnitExists(unit) return unit == "npc" or (unit == "target" and M.targetName ~= nil) end
+function UnitName(unit) if unit == "npc" then return M.npcName elseif unit == "target" then return M.targetName end end
+function GetCVarBool(name) if name == "ActionButtonUseKeyDown" then return M.keyDown == true end end
+function SetRaidTarget() error("ADDON_ACTION_FORBIDDEN: SetRaidTarget") end
+function GetRaidTargetIndex() error("secret value") end
 function GetSubZoneText() return M.subzone end
 function PlaySound() M.sound = true end
 function GetInventoryItemID(_, slot) if slot == 18 then return M.ranged end end
