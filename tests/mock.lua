@@ -104,7 +104,7 @@ function GetTime() return M.time end
 function InCombatLockdown() return M.combat == true end
 SecureCmdList = { TARGET_MARKER = function() end }
 function UnitLevel() return M.level end
-function UnitFactionGroup() return M.faction end
+function UnitFactionGroup(unit) if unit == "npc" then return M.npcFaction end return M.faction end
 function UnitExists(unit) return unit == "npc" or (unit == "target" and M.targetName ~= nil) end
 function UnitName(unit) if unit == "npc" then return M.npcName elseif unit == "target" then return M.targetName end end
 function GetCVarBool(name) if name == "ActionButtonUseKeyDown" then return M.keyDown == true end end

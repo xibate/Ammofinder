@@ -119,6 +119,42 @@ M.Fire("MERCHANT_SHOW")
 local learned = db.vendors[#db.vendors]
 ok(learned and learned.name == "New Guy" and learned.ammo == "both" and #learned.items == 2, "learned vendor with items")
 
+-- Opening a built-in vendor's window corrects their position, without adding a duplicate
+local before = #db.vendors
+M.mapID, M.subzone, M.npcName, M.pos = 1453, "Trade District", "Thurman Mullby", { 0.646, 0.714 }
+M.merchant = { 2512, 2516 }
+M.Fire("MERCHANT_SHOW")
+ok(#db.vendors == before and db.seedPos["1453:Thurman Mullby"], "built-in vendor position saved, not duplicated")
+db.cooldown, db.ammoFilter, db.ammoItems = 0, "any", { [2512] = true }
+M.ranged = 1000
+Enter(1453, "Trade District", 0.646, 0.714)
+ok(banner.sub.text:find("Thurman Mullby"), "nearest is Mullby at his seen spot: " .. banner.sub.text)
+SlashCmdList.AMMOFINDER("go")
+ok(M.waypoint and math.abs(M.waypoint.x - 0.646) < 0.001 and math.abs(M.waypoint.y - 0.714) < 0.001,
+    "waypoint uses the seen position")
+-- Faction: the other side's vendors are skipped, built in or learned; neutral ones count for both
+M.faction = "Horde"
+ok(not Enter(1453, "Trade District", 0.646, 0.714), "Horde in Stormwind: no Alliance vendors")
+M.faction = "Alliance"
+M.mapID, M.subzone, M.pos = 1432, "Thelsamar", { 0.35, 0.43 }
+M.npcName, M.npcFaction, M.merchant = "Horde Guy", "Horde", { 2512 }
+M.Fire("MERCHANT_SHOW")
+M.npcName, M.npcFaction = "Neutral Guy", "Neutral"
+M.Fire("MERCHANT_SHOW")
+local hordeGuy, neutralGuy
+for _, v in ipairs(db.vendors) do
+    if v.name == "Horde Guy" then hordeGuy = v elseif v.name == "Neutral Guy" then neutralGuy = v end
+end
+ok(hordeGuy and hordeGuy.faction == "Horde" and neutralGuy and neutralGuy.faction == nil, "learned vendors keep their faction")
+local names = {}
+for _, v in ipairs(ns.CurrentVendors(1432, "Thelsamar", "arrow", ns.WantedItems("arrow"))) do names[v.name] = true end
+ok(not names["Horde Guy"] and names["Neutral Guy"], "Alliance skips a learned Horde vendor, keeps a neutral one")
+M.npcFaction = nil
+M.mapID, M.subzone, M.pos = 1453, "Trade District", { 0.646, 0.714 }
+
+SlashCmdList.AMMOFINDER("where")
+ok(table.concat(M.printed, " "):find("64.6, 71.4", 1, true), "/ammo where prints the position")
+
 -- Settings window
 SlashCmdList.AMMOFINDER("")
 local window = ns:GetOptionsWindow()

@@ -50,7 +50,7 @@ ns.SEED = {
         { name = "Frederick Stover", subzone = "Trade District", x = 50.2, y = 57.4, ammo = "arrow", faction = "Alliance", id = 1298, items = { 2512, 2515, 3030, 11285 } },
         { name = "Lina Stover", subzone = "Trade District", x = 50.4, y = 57.4, ammo = "both", faction = "Alliance", id = 1297, items = { 2512, 2515, 3030, 2516, 2519, 3033, 11284 } },
         { name = "Marda Weller", subzone = "Trade District", x = 57.2, y = 57, ammo = "arrow", faction = "Alliance", id = 1287, items = { 2512, 2515, 3030 } },
-        { name = "Thurman Mullby", subzone = "Trade District", x = 58, y = 61.6, ammo = "both", faction = "Alliance", id = 1285, items = { 2512, 2515, 3030, 11285, 2516, 2519, 3033, 11284 } },
+        { name = "Thurman Mullby", subzone = "Trade District", x = 64.6, y = 71.4, ammo = "both", faction = "Alliance", id = 1285, items = { 2512, 2515, 3030, 11285, 2516, 2519, 3033, 11284 } },
     },
     [1456] = { -- Thunder Bluff
         { name = "Hogor Thunderhoof", subzone = "High Rise", x = 55.4, y = 56.4, ammo = "bullet", faction = "Horde", id = 3018, items = { 2516, 2519, 3033, 11284 } },

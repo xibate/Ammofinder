@@ -25,6 +25,7 @@ local DEFAULTS = {
     ammoFilter = "any",  -- "any": any ammo for the weapon, "best": the best ammo for your level, "custom": ammoItems
     ammoItems = nil,     -- [itemID] = true, the ammo picked for "custom" (filled with every item the first time)
     vendors = {},        -- learned vendors
+    seedPos = {},        -- ["mapID:name"] = { x, y }: where a built-in vendor really stands, from opening their window
 }
 ns.DEFAULTS = DEFAULTS
 
@@ -557,23 +558,28 @@ end
 
 local function CurrentVendors(mapID, subzone, wanted, items)
     local found = {}
-    local faction = UnitFactionGroup("player")
+    local faction = safe(UnitFactionGroup("player"))
+    -- The other faction's vendors won't sell to you (they're usually hostile), so skip them. No faction = neutral
+    local function CanBuy(v) return not v.faction or not faction or v.faction == faction end
     local px, py = PlayerPosition(mapID)
     for _, v in ipairs(ns.SEED[mapID] or {}) do
-        if Matches(v.ammo, wanted) and SellsWanted(v, items) and (not v.faction or not faction or v.faction == faction)
+        if Matches(v.ammo, wanted) and SellsWanted(v, items) and CanBuy(v)
             and SeedApplies(v, mapID, subzone, px, py) then
-            found[#found + 1] = { name = v.name, subzone = v.subzone, x = v.x, y = v.y, ammo = v.ammo, mapID = mapID,
-                items = v.items }
+            -- A position seen in game beats the one shipped in Data.lua (Forever moved some maps around)
+            local seen = db.seedPos[mapID .. ":" .. v.name]
+            found[#found + 1] = { name = v.name, subzone = v.subzone, x = seen and seen[1] or v.x,
+                y = seen and seen[2] or v.y, ammo = v.ammo, mapID = mapID, items = v.items }
         end
     end
     for _, v in ipairs(db.vendors) do
         local here = v.mapID == mapID and (ns.CITY_MAPS[mapID] or v.subzone == subzone)
-        if here and Matches(v.ammo, wanted) and SellsWanted(v, items) and not SeedHas(mapID, v.name) then
+        if here and Matches(v.ammo, wanted) and SellsWanted(v, items) and CanBuy(v) and not SeedHas(mapID, v.name) then
             found[#found + 1] = v
         end
     end
     return found, px, py
 end
+ns.CurrentVendors = CurrentVendors
 
 local function Check(force)
     if not db.enabled then
@@ -664,17 +670,24 @@ local function LearnVendor()
     end
     local ammo = (hasArrow and hasBullet) and "both" or (hasArrow and "arrow" or "bullet")
     local subzone = GetSubZoneText() or ""
+    -- Only Alliance or Horde count; anything else (nil, "Neutral") sells to both
+    local faction = safe(UnitFactionGroup("npc"))
+    if faction ~= "Alliance" and faction ~= "Horde" then faction = nil end
 
-    if SeedHas(mapID, name) then return end -- already shipped in Data.lua
+    if SeedHas(mapID, name) then -- already shipped in Data.lua: only remember where they really stand
+        if x and y then db.seedPos[mapID .. ":" .. name] = { x, y } end
+        return
+    end
 
     for _, v in ipairs(db.vendors) do
         if v.name == name and v.mapID == mapID then
-            v.ammo, v.subzone, v.items = ammo, subzone, items
+            v.ammo, v.subzone, v.items, v.faction = ammo, subzone, items, faction
             if x and y then v.x, v.y = x, y end
             return
         end
     end
-    table.insert(db.vendors, { name = name, mapID = mapID, subzone = subzone, x = x, y = y, ammo = ammo, items = items })
+    table.insert(db.vendors, { name = name, mapID = mapID, subzone = subzone, x = x, y = y, ammo = ammo, items = items,
+        faction = faction })
     print_("Learned ammo vendor " .. name .. (subzone ~= "" and (" in " .. subzone) or "") .. ".")
 end
 
@@ -748,7 +761,7 @@ local function Toggle(key, label)
     if ns.RefreshOptions then ns:RefreshOptions() end
 end
 
-local HELP = "/ammo opens the settings. Also: check | go | move | reset | test | on | off | always | banner | chat | sound | list"
+local HELP = "/ammo opens the settings. Also: check | go | where | move | reset | test | on | off | always | banner | chat | sound | list"
 
 SLASH_AMMOFINDER1 = "/ammo"
 SLASH_AMMOFINDER2 = "/ammofinder"
@@ -772,6 +785,12 @@ SlashCmdList.AMMOFINDER = function(msg)
         print_("  Marker setting: " .. tostring(db.markIcon) .. "   Vendor: " .. (current and current.name or "none"))
         print_("  Secure button shown: " .. yes(secure:IsShown()) .. "   type: " .. tostring(secure:GetAttribute("type")))
         print_("  Macro: " .. tostring(secure:GetAttribute("macrotext")):gsub("\n", " | "))
+    elseif cmd == "where" then
+        local mapID = C_Map.GetBestMapForUnit("player")
+        local x, y
+        if mapID then x, y = PlayerPosition(mapID) end
+        print_(("You are at %s on map %s (%s)."):format(x and ("%.1f, %.1f"):format(x * 100, y * 100) or "an unknown position",
+            tostring(mapID), GetSubZoneText() or ""))
     elseif cmd == "move" then
         if banner.unlocked then ns.LockBanner() else ns.UnlockBanner() end
     elseif cmd == "reset" then

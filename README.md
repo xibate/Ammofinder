@@ -24,7 +24,8 @@ Running out of arrows or bullets in the middle of nowhere is a hunter rite of pa
 - **Put it where you like.** Drag the banner anywhere on screen.
 - **Low ammo warning.** The banner turns red and says *Low on Ammo!* or *Out of Ammo!* below a count you choose. Or only hear about vendors when you are running low.
 - **No spam.** The same town is not announced again for a while (10 minutes by default, your choice).
-- **111 vendors built in.** Every Classic capital and town vendor that sells arrows or bullets, with what they sell, from warcraft.wiki.gg and Wowhead Classic.
+- **111 vendors built in.** Every Classic capital and town vendor that sells arrows or bullets, with what they sell, from warcraft.wiki.gg and Wowhead Classic. The full list, with zone, coordinates, faction and ammo, is in [VENDORS.md](VENDORS.md).
+- **Only vendors you can buy from.** The other faction's vendors are never announced. Neutral towns like Booty Bay and Gadgetzan count for both.
 - **Learns as you play.** Open any vendor that sells arrows or bullets and AmmoFinder remembers them, their stock and where they are.
 
 ## Settings
@@ -53,6 +54,7 @@ Type `/ammo`, or open *Options > AddOns > AmmoFinder*.
 | `/ammo go` | Set a waypoint to the last announced vendor |
 | `/ammo check` | Look for a vendor here now, ignoring the timeout |
 | `/ammo test` | Show a test banner |
+| `/ammo where` | Print where you stand (map coordinates), to report a vendor in the wrong place |
 | `/ammo move` | Unlock the banner to drag it, or lock it again |
 | `/ammo reset` | Put the banner back in its default place |
 | `/ammo on` / `off` | Turn AmmoFinder on or off |
@@ -82,7 +84,7 @@ The game loads the right `.toc` file for the client you are playing on.
 
 ## Known limitations
 
-- Forever reshaped the Stormwind, Redridge, Eastern Plaguelands and Mulgore maps, so waypoints there can be a little off.
+- Forever reshaped the Stormwind, Redridge, Eastern Plaguelands and Mulgore maps, so waypoints there can be off. Open a built-in vendor's window once and AmmoFinder uses where you stood from then on.
 - Vendor stock comes from Wowhead Classic. Vendors you learned before 0.4.0 have no stock saved, so they are announced whatever ammo you picked, until you open their window again.
 - A learned vendor's position is where you stood when you opened their window.
 
@@ -91,6 +93,7 @@ The game loads the right `.toc` file for the client you are playing on.
 - `AmmoFinder/` is the addon folder. `Data.lua` has the vendors and ammo, `AmmoFinder.lua` the banner and logic, `Options.lua` the settings and `Theme.lua` the look, shared with Crescendo and Easy Delete.
 - The icon is the game's own `Interface\Icons\INV_Ammo_Arrow_02`, so the addon ships no textures. `.github/icon.jpg` is the same icon from Wowhead, for this README.
 - `cd tests && npm install && npm test` runs the addon against a mock of the WoW API. It does not replace trying it in game.
+- `VENDORS.md` is generated from `Data.lua`: run `npm run vendors` in `tests` after changing the data.
 - Releases: run *Publish Addon to CurseForge* from the Actions tab, or push a tag like `v0.4.0` matching `## Version` in `AmmoFinder/AmmoFinder.toc`. It needs the `CF_API_KEY` secret (a CurseForge API token). The CurseForge project id is 1811015, in `## X-Curse-Project-ID` in every `.toc` file.
 
 ## Changelog
@@ -99,6 +102,10 @@ The game loads the right `.toc` file for the client you are playing on.
 - Fixed: Point me there didn't target or mark. Since the 10.0 engine a secure button only acts on the half of the click matching the "cast on key down" setting, and it was registered for mouse-up only.
 - After the click, chat says whether the vendor was targeted and marked, or that they are too far away.
 - `/ammo debug` shows whether this client has /tm, the key down setting, and the macro the button runs.
+- Opening a built-in vendor's window now corrects their position when the shipped one is wrong, and `/ammo where` prints where you stand.
+- Learned vendors remember their faction, so the other faction's vendors are skipped for them too, like the built-in ones.
+- [VENDORS.md](VENDORS.md) lists every built-in vendor: zone, area, coordinates, faction, and the arrows and bullets they sell.
+- Fixed: Thurman Mullby (Stormwind) now uses his position from the current Wowhead map (64.6, 71.4); the Classic one was wrong in Forever.
 
 ### 0.5.1
 - Fixed: marking the vendor called SetRaidTarget from addon code, which WoW Forever blocks (ADDON_ACTION_FORBIDDEN, and a secret-value error). Marking now happens when you click **Point me there**, through a secure button.
