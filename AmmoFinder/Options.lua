@@ -9,7 +9,7 @@ local ICON = "Interface\\Icons\\INV_Ammo_Arrow_02"
 local COLUMN_W = 280
 local COLUMN_GAP = 32
 local CONTENT_W = 2 * COLUMN_W + COLUMN_GAP
-local CONTENT_H = 410
+local CONTENT_H = 440
 
 local FILTERS = {
     { key = "any", label = "Any ammo for my weapon",
@@ -85,13 +85,20 @@ local function BuildContent(parent)
         function(v) return v == 0 and "off" or tostring(v) end,
         function() return DB().lowAmmo end,
         function(v) DB().lowAmmo = v end, COLUMN_W)), x, y)
-    y = y - 46
-    Place(Add(ns:Slider(content, "Banner distance from the top", 40, 700, 10,
-        function(v) return v .. " px" end,
-        function() return DB().bannerY end,
-        function(v) DB().bannerY = v; ns.ApplyBannerPosition() end, COLUMN_W)), x, y)
-    y = y - 46
-    Place(ns:Button(content, "Show a test banner", 150, 24, function() ns.PreviewBanner() end, true), x, y)
+    y = y - 40
+    Place(Toggle("Only announce when below this", "onlyLow",
+        "Stay quiet while you have enough ammo. A town is announced once you have less than the low ammo count."), x, y)
+    y = y - 34
+    --Moving the banner: unlock it, drag it where you want it, lock it again
+    local move = Place(Add(ns:Button(content, "Move banner", 136, 24, function()
+        if ns.IsBannerUnlocked() then ns.LockBanner() else ns.UnlockBanner() end
+    end, true)), x, y)
+    function move:Refresh()
+        self.label:SetText(ns.IsBannerUnlocked() and "Lock banner" or "Move banner")
+    end
+    Place(ns:Button(content, "Reset position", 136, 24, function() ns.ResetBannerPosition() end), x + 144, y)
+    y = y - 32
+    Place(ns:Button(content, "Show a test banner", 136, 24, function() ns.PreviewBanner() end), x, y)
 
     --Right column: which ammo to look for
     x, y = COLUMN_W + COLUMN_GAP, 0
@@ -134,13 +141,56 @@ local function BuildContent(parent)
     note:SetText("What each vendor sells comes from Wowhead Classic. Vendors you met yourself remember what they sold. "
         .. "The number is the level you need to use it.")
 
-    local status = Place(ns:Text(content, 11, theme.warning), x, y - 58)
+    local status = Place(ns:Text(content, 11, theme.warning), x, y - 44)
     status:SetWidth(COLUMN_W)
     status:SetWordWrap(true)
 
+    --The raid marker put on the vendor: Off, then star to skull
+    y = y - 88
+    Place(ns:SectionLabel(content, "Mark the vendor"), x, y)
+    y = y - 18
+    local function MarkButton(icon, bx)
+        local button = CreateFrame("Button", nil, content)
+        button:SetSize(icon == 0 and 34 or 22, 22)
+        ns:Fill(button, theme.input)
+        local setBorder = ns:Border(button, theme.borderStrong)
+        if icon == 0 then
+            button.text = ns:Text(button, 11, theme.text, "CENTER")
+            button.text:SetPoint("CENTER")
+            button.text:SetText("Off")
+        else
+            local texture = button:CreateTexture(nil, "ARTWORK")
+            texture:SetPoint("TOPLEFT", 3, -3)
+            texture:SetPoint("BOTTOMRIGHT", -3, 3)
+            texture:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcon_" .. icon)
+        end
+        function button:Refresh()
+            if DB().markIcon == icon then
+                setBorder(ns.Color(theme.accent, 1))
+            else
+                setBorder(1, 1, 1, 0.15)
+            end
+            self:SetAlpha((DB().markIcon == icon or icon ~= 0) and 1 or 0.7)
+        end
+        button:SetScript("OnClick", function()
+            DB().markIcon = icon
+            ns:RefreshOptions()
+        end)
+        return Place(Add(button), bx, y)
+    end
+    MarkButton(0, x)
+    for icon = 1, 8 do
+        MarkButton(icon, x + 38 + (icon - 1) * 26)
+    end
+    y = y - 30
+    local markNote = Place(ns:Text(content, 11, theme.dim), x, y)
+    markNote:SetWidth(COLUMN_W)
+    markNote:SetWordWrap(true)
+    markNote:SetText("Put on the vendor when you target or mouse over them. Not in raids.")
+
     local commands = Place(ns:Text(content, 11, theme.section), 0, -(CONTENT_H - 16))
     commands:SetWidth(CONTENT_W)
-    commands:SetText("/ammo go  set a waypoint     /ammo check  look again here     /ammo test  test banner")
+    commands:SetText("/ammo go  set a waypoint     /ammo check  look again here     /ammo move  move the banner")
 
     function content:Refresh()
         if not DB() then return end
@@ -166,6 +216,9 @@ local function BuildContent(parent)
                 end
             end
             text = ("At level %d that is %s."):format(level, table.concat(names, " and "))
+        end
+        if DB().onlyLow and DB().lowAmmo == 0 then
+            text = "Only when low is on but the low ammo count is off, so nothing will be announced. " .. text
         end
         if not DB().enabled then
             text = "AmmoFinder is off. " .. text

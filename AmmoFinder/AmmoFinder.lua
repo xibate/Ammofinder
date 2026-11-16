@@ -17,8 +17,11 @@ local DEFAULTS = {
     sound = false,       -- play a chime with the banner
     duration = 6,        -- seconds the banner stays up (low ammo adds 2)
     cooldown = 10,       -- minutes before the same town is announced again (0 = every time)
+    bannerX = 0,         -- banner offset from the middle of the screen (set by dragging it, /ammo move)
     bannerY = 260,       -- banner distance from the top of the screen, below the game's zone text
+    markIcon = 1,        -- raid marker put on the vendor when you target or mouse over them (1 star .. 8 skull, 0 off)
     lowAmmo = 200,       -- warn when the equipped ammo stack is below this
+    onlyLow = false,     -- only announce vendors when you have less than lowAmmo
     ammoFilter = "any",  -- "any": any ammo for the weapon, "best": the best ammo for your level, "custom": ammoItems
     ammoItems = nil,     -- [itemID] = true, the ammo picked for "custom" (filled with every item the first time)
     vendors = {},        -- learned vendors
@@ -243,6 +246,7 @@ local function Dismiss()
 end
 
 banner.button:SetScript("OnClick", function()
+    if banner.unlocked then ns.LockBanner() return end
     if banner.preview then Dismiss() return end
     if SetWaypoint(banner.vendor) then Dismiss() end
 end)
@@ -261,7 +265,60 @@ end)
 
 function ns.ApplyBannerPosition()
     banner:ClearAllPoints()
-    banner:SetPoint("TOP", UIParent, "TOP", 0, -(db and db.bannerY or DEFAULTS.bannerY))
+    banner:SetPoint("TOP", UIParent, "TOP", db and db.bannerX or DEFAULTS.bannerX, -(db and db.bannerY or DEFAULTS.bannerY))
+end
+
+function ns.ResetBannerPosition()
+    db.bannerX, db.bannerY = DEFAULTS.bannerX, DEFAULTS.bannerY
+    ns.ApplyBannerPosition()
+end
+
+-- Move mode: the banner stays up with an amber outline and can be dragged. Its top edge is what is saved, so it grows
+-- downwards from where you put it whatever text it shows. Right-click it, click its button or /ammo move to lock it
+banner.move = CreateFrame("Frame", nil, banner)
+banner.move:SetAllPoints()
+banner.move:SetFrameLevel(banner:GetFrameLevel() + 5)
+ns:Fill(banner.move, { ns.theme.accent[1], ns.theme.accent[2], ns.theme.accent[3], 0.12 }, "OVERLAY")
+ns:Border(banner.move, { ns.theme.accent[1], ns.theme.accent[2], ns.theme.accent[3], 0.9 })
+banner.move.label = ns:Text(banner.move, 12, ns.theme.accent, "CENTER")
+banner.move.label:SetPoint("BOTTOM", banner, "TOP", 0, 6)
+banner.move.label:SetText("Drag to move the banner. Right-click to lock it.")
+banner.move:Hide()
+banner:SetMovable(true)
+banner:RegisterForDrag("LeftButton")
+banner:SetScript("OnDragStart", function(self)
+    if self.unlocked then self:StartMoving() end
+end)
+banner:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+    if self.SetUserPlaced then self:SetUserPlaced(false) end -- the saved setting is the one source of the position
+    local x = self:GetCenter() - UIParent:GetWidth() / 2
+    local y = UIParent:GetTop() - self:GetTop()
+    db.bannerX, db.bannerY = math.floor(x + 0.5), math.floor(y + 0.5)
+    ns.ApplyBannerPosition()
+end)
+banner:SetScript("OnMouseUp", function(self, button)
+    if self.unlocked and button == "RightButton" then ns.LockBanner() end
+end)
+
+function ns.UnlockBanner()
+    banner.unlocked = true
+    banner.move:Show()
+    banner:EnableMouse(true)
+    ns.PreviewBanner()
+    if ns.RefreshOptions then ns:RefreshOptions() end
+end
+
+function ns.LockBanner()
+    banner.unlocked = false
+    banner.move:Hide()
+    banner:EnableMouse(false)
+    Dismiss()
+    if ns.RefreshOptions then ns:RefreshOptions() end
+end
+
+function ns.IsBannerUnlocked()
+    return banner.unlocked == true
 end
 
 -- Height from the text that is shown: title, divider, vendor line and ammo line beside the icon, then the button
@@ -291,7 +348,9 @@ local function ShowBanner(v, count, wanted, sells, preview)
     banner.icon:SetTexture(ICONS[ammoType or "arrow"] or ICONS.unknown)
     if low then banner.icon:SetVertexColor(1, 0.6, 0.6) else banner.icon:SetVertexColor(1, 1, 1) end
 
-    local line = TEXT_CREAM .. v.name .. "|r"
+    local mark = db.markIcon or 0
+    local line = (mark > 0 and ("|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_%d:0|t "):format(mark) or "")
+        .. TEXT_CREAM .. v.name .. "|r"
     if v.subzone and v.subzone ~= "" then line = line .. TEXT_TAN .. " \194\183 " .. v.subzone .. "|r" end
     banner.sub:SetText(line)
 
@@ -316,6 +375,11 @@ local function ShowBanner(v, count, wanted, sells, preview)
     hold:SetDuration((db.duration or DEFAULTS.duration) + (low and LOW_EXTRA or 0))
 
     banner.anim:Stop()
+    if banner.unlocked then
+        banner:SetAlpha(1)
+        banner:Show()
+        return
+    end
     banner:SetAlpha(0)
     banner:Show()
     banner.anim:Play()
@@ -401,6 +465,11 @@ local function Check(force)
     if not mapID then return end
     local subzone = GetSubZoneText() or ""
 
+    -- With "only when low", stay quiet while you have enough. Checked before the timeout is used up, so the town is
+    -- announced once you drop below. An unreadable count still announces
+    local count = AmmoCount()
+    if db.onlyLow and not force and count and count >= (db.lowAmmo or DEFAULTS.lowAmmo) then return end
+
     local items = WantedItems(wanted)
     local vendors, px, py = CurrentVendors(mapID, subzone, wanted, items)
     if #vendors == 0 then
@@ -426,7 +495,6 @@ local function Check(force)
     end
     current = pick
 
-    local count = AmmoCount()
     if db.banner then ShowBanner(pick, count, wanted, WantedNames(pick, items)) end
     if db.chat then
         local names = {}
@@ -489,6 +557,25 @@ local function LearnVendor()
 end
 
 ---------------------------------------------------------------------------
+-- Marking the vendor
+---------------------------------------------------------------------------
+
+-- Addons can't target an NPC by name, so the vendor the banner pointed at gets its raid marker the moment it is your
+-- target or mouseover, or its nameplate shows. Solo the marker is only visible to you; in a party everyone sees it.
+-- Never in a raid, where marks belong to the raid leader.
+local function MarkVendor(unit)
+    local icon = db and db.markIcon or 0
+    if icon == 0 or not current or not unit then return end
+    if not UnitExists(unit) or UnitIsPlayer(unit) then return end
+    if safe(UnitName(unit)) ~= current.name then return end
+    if IsInRaid and IsInRaid() then return end
+    if not (SetRaidTarget and GetRaidTargetIndex) then return end
+    if GetRaidTargetIndex(unit) == icon then return end
+    SetRaidTarget(unit, icon)
+end
+ns.MarkVendor = MarkVendor
+
+---------------------------------------------------------------------------
 -- Events
 ---------------------------------------------------------------------------
 
@@ -516,7 +603,8 @@ function frame:ADDON_LOADED(name)
     self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
     self:RegisterEvent("ZONE_CHANGED")
     -- Not confirmed on every Forever build; a missing event must not break loading.
-    for _, event in ipairs({ "ZONE_CHANGED_INDOORS", "MERCHANT_SHOW", "PLAYER_EQUIPMENT_CHANGED", "PLAYER_LEVEL_UP" }) do
+    for _, event in ipairs({ "ZONE_CHANGED_INDOORS", "MERCHANT_SHOW", "PLAYER_EQUIPMENT_CHANGED", "PLAYER_LEVEL_UP",
+        "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "NAME_PLATE_UNIT_ADDED" }) do
         pcall(self.RegisterEvent, self, event)
     end
 end
@@ -535,6 +623,9 @@ end
 function frame:PLAYER_LEVEL_UP()
     wipe(announced)
 end
+function frame:PLAYER_TARGET_CHANGED() MarkVendor("target") end
+function frame:UPDATE_MOUSEOVER_UNIT() MarkVendor("mouseover") end
+function frame:NAME_PLATE_UNIT_ADDED(unit) MarkVendor(unit) end
 
 frame:SetScript("OnEvent", function(self, event, ...)
     if self[event] then self[event](self, ...) end
@@ -550,7 +641,7 @@ local function Toggle(key, label)
     if ns.RefreshOptions then ns:RefreshOptions() end
 end
 
-local HELP = "/ammo opens the settings. Also: check | go | on | off | always | banner | chat | sound | test | list"
+local HELP = "/ammo opens the settings. Also: check | go | move | reset | test | on | off | always | banner | chat | sound | list"
 
 SLASH_AMMOFINDER1 = "/ammo"
 SLASH_AMMOFINDER2 = "/ammofinder"
@@ -564,6 +655,11 @@ SlashCmdList.AMMOFINDER = function(msg)
         Check(true)
     elseif cmd == "test" then
         ns.PreviewBanner()
+    elseif cmd == "move" then
+        if banner.unlocked then ns.LockBanner() else ns.UnlockBanner() end
+    elseif cmd == "reset" then
+        ns.ResetBannerPosition()
+        print_("Banner position reset.")
     elseif cmd == "on" or cmd == "off" then
         db.enabled = (cmd == "on")
         print_(db.enabled and "enabled" or "disabled")

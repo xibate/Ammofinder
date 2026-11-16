@@ -19,7 +19,9 @@ Running out of arrows or bullets in the middle of nowhere is a hunter rite of pa
 - **A banner when you arrive.** The vendor's name and area, your ammo count, and a **Point me there** button that sets a map waypoint (or type `/ammo go`).
 - **Only the ammo you use.** Bows and crossbows get arrow vendors, guns get bullet vendors. Nothing shows without a ranged weapon, unless you want it to.
 - **Only the ammo you want.** Any ammo for your weapon, only the best ammo for your level (Rough, Sharp, Razor, Jagged Arrows; Light, Heavy, Solid Shot, Accurate Slugs), or exactly the kinds you tick.
-- **Low ammo warning.** The banner turns red and says *Low on Ammo!* or *Out of Ammo!* below a count you choose.
+- **Spot the vendor.** The vendor gets a raid marker (star by default) as soon as you mouse over or target them, so they stand out in a busy city.
+- **Put it where you like.** Drag the banner anywhere on screen.
+- **Low ammo warning.** The banner turns red and says *Low on Ammo!* or *Out of Ammo!* below a count you choose. Or only hear about vendors when you are running low.
 - **No spam.** The same town is not announced again for a while (10 minutes by default, your choice).
 - **111 vendors built in.** Every Classic capital and town vendor that sells arrows or bullets, with what they sell, from warcraft.wiki.gg and Wowhead Classic.
 - **Learns as you play.** Open any vendor that sells arrows or bullets and AmmoFinder remembers them, their stock and where they are.
@@ -35,7 +37,9 @@ Type `/ammo`, or open *Options > AddOns > AmmoFinder*.
 | Show the banner for | 6 sec | How long the banner stays up (2 seconds more when you are low on ammo) |
 | Same place again after | 10 min | How long before the same town or city is announced again. 0 announces it every time |
 | Low ammo warning below | 200 | Below this count the banner turns red. 0 turns the warning off |
-| Banner distance from the top | 260 px | Moves the banner up or down, so it does not cover the game's zone text |
+| Only announce when below this | off | Stay quiet while you have enough ammo, and only announce vendors once you are below the low ammo count |
+| Move banner / Reset position | below the zone text | Unlocks the banner so you can drag it anywhere. Right-click it or click *Lock banner* when it's in place |
+| Mark the vendor | star | Raid marker put on the vendor when you target or mouse over them, or their nameplate shows. *Off*, or star to skull. Never in a raid |
 | Which ammo | Any ammo for my weapon | *Any ammo for my weapon*, *Only the best ammo for my level*, or *Only the ammo I tick below* |
 
 **Show a test banner** (or `/ammo test`) shows an example banner, to try out the length and position.
@@ -48,6 +52,8 @@ Type `/ammo`, or open *Options > AddOns > AmmoFinder*.
 | `/ammo go` | Set a waypoint to the last announced vendor |
 | `/ammo check` | Look for a vendor here now, ignoring the timeout |
 | `/ammo test` | Show a test banner |
+| `/ammo move` | Unlock the banner to drag it, or lock it again |
+| `/ammo reset` | Put the banner back in its default place |
 | `/ammo on` / `off` | Turn AmmoFinder on or off |
 | `/ammo banner` / `chat` / `sound` / `always` | Toggle those settings |
 | `/ammo list` | List the vendors you have learned |
@@ -82,6 +88,11 @@ The game loads the right `.toc` file for the client you are playing on.
 - Releases: run *Publish Addon to CurseForge* from the Actions tab, or push a tag like `v0.4.0` matching `## Version` in `AmmoFinder/AmmoFinder.toc`. It needs a `CF_API_KEY` secret and a `## X-Curse-Project-ID` line in the `.toc` files once the CurseForge project exists.
 
 ## Changelog
+
+### 0.5.0
+- Only announce when low: a setting under the low ammo count that keeps AmmoFinder quiet until you have less than that.
+- Move the banner: *Move banner* in the settings (or `/ammo move`) lets you drag it anywhere. *Reset position* or `/ammo reset` puts it back.
+- Mark the vendor: the vendor the banner points at gets a raid marker (star by default) when you target or mouse over them, so they stand out in a crowd. The banner shows the same marker next to their name.
 
 ### 0.4.0
 - Settings window (`/ammo`) and a page in *Options > AddOns*, in the style of Crescendo and Easy Delete.

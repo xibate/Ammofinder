@@ -33,6 +33,9 @@ function Object:SetSize(w, h) self.w, self.h = w, h end
 function Object:SetWidth(w) self.w = w end
 function Object:SetHeight(h) self.h = h end
 function Object:GetHeight() return self.h end
+function Object:GetFrameLevel() return 1 end
+function Object:GetCenter() return self.cx or 0, self.cy or 0 end
+function Object:GetTop() return self.top or 0 end
 function Object:GetWidth() return self.w end
 function Object:SetPoint(...) table.insert(self.points, { ... }) end
 function Object:ClearAllPoints() self.points = {} end
@@ -80,6 +83,7 @@ function CreateFrame(kind, name, parent, template)
     return f
 end
 UIParent = New("Frame")
+UIParent.w, UIParent.top = 1920, 1080
 GameTooltip = New("GameTooltip")
 UISpecialFrames = {}
 SlashCmdList = {}
@@ -90,8 +94,13 @@ function GetTime() return M.time end
 function InCombatLockdown() return false end
 function UnitLevel() return M.level end
 function UnitFactionGroup() return M.faction end
-function UnitExists() return true end
-function UnitName() return M.npcName end
+M.units, M.marks, M.raid = {}, {}, false
+function UnitExists(unit) return unit == "npc" or M.units[unit] ~= nil end
+function UnitName(unit) if unit == "npc" then return M.npcName end return M.units[unit] and M.units[unit].name end
+function UnitIsPlayer(unit) return M.units[unit] and M.units[unit].player or false end
+function IsInRaid() return M.raid end
+function GetRaidTargetIndex(unit) return M.marks[unit] end
+function SetRaidTarget(unit, i) M.marks[unit] = i end
 function GetSubZoneText() return M.subzone end
 function PlaySound() M.sound = true end
 function GetInventoryItemID(_, slot) if slot == 18 then return M.ranged end end
@@ -123,7 +132,7 @@ Settings = {
     RegisterCanvasLayoutCategory = function(panel, name) M.settingsPanel = panel; return { name = name } end,
     RegisterAddOnCategory = function(c) M.settingsCategory = c end,
 }
-C_AddOns = { GetAddOnMetadata = function(_, k) if k == "Version" then return "0.4.0" end end }
+C_AddOns = { GetAddOnMetadata = function(_, k) if k == "Version" then return "0.5.0" end end }
 
 function M.Fire(event, ...)
     local f = M.events[event]

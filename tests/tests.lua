@@ -147,16 +147,88 @@ local before = db.ammoItems[11285]
 jag:Click()
 ok(db.ammoItems[11285] ~= before, "pick toggles item")
 local sliders = Find(content, function(f) return f.kind == "Slider" end)
-ok(#sliders == 4, "4 sliders, got " .. #sliders)
+ok(#sliders == 3, "3 sliders, got " .. #sliders)
 sliders[1]:SetValue(12.4)
 ok(db.duration == 12, "duration slider snaps to 12, got " .. tostring(db.duration))
 sliders[2]:SetValue(30)
 ok(db.cooldown == 30, "cooldown slider")
-sliders[4]:SetValue(400)
-ok(db.bannerY == 400 and banner.points[1][5] == -400, "position slider moves banner")
 SlashCmdList.AMMOFINDER("test")
 ok(banner:IsShown() and banner.preview, "/ammo test previews")
 banner.button:Click()
 ok(not banner:IsShown(), "preview button just closes")
+
+
+-- Moving the banner
+ns.UnlockBanner()
+ok(banner:IsShown() and banner.alpha == 1 and not banner.anim.playing and banner.move:IsShown(), "unlocked banner stays up with outline")
+banner.cx, banner.top = 1060, 900
+banner.scripts.OnDragStart(banner)
+banner.scripts.OnDragStop(banner)
+ok(db.bannerX == 100 and db.bannerY == 180, ("drag saves position (%s, %s)"):format(tostring(db.bannerX), tostring(db.bannerY)))
+local p = banner.points[#banner.points]
+ok(p[1] == "TOP" and p[4] == 100 and p[5] == -180, "drag re-anchors by the top edge")
+banner.scripts.OnMouseUp(banner, "RightButton")
+ok(not ns.IsBannerUnlocked() and not banner:IsShown() and not banner.move:IsShown(), "right-click locks and hides")
+SlashCmdList.AMMOFINDER("move")
+ok(ns.IsBannerUnlocked(), "/ammo move unlocks")
+SlashCmdList.AMMOFINDER("move")
+ok(not ns.IsBannerUnlocked(), "/ammo move locks again")
+SlashCmdList.AMMOFINDER("reset")
+ok(db.bannerX == 0 and db.bannerY == 260, "/ammo reset")
+
+-- Marking the vendor
+db.markIcon = 1
+db.ammoFilter = "any"
+db.cooldown = 0
+Enter(1453, "Trade District", 0.5, 0.57)
+local name = banner.vendor.name
+ok(banner.sub.text:find("UI%-RaidTargetingIcon_1") ~= nil, "banner shows the marker")
+M.units.mouseover = { name = "Some Guard" }
+M.Fire("UPDATE_MOUSEOVER_UNIT")
+ok(M.marks.mouseover == nil, "other NPC not marked")
+M.units.mouseover = { name = name }
+M.Fire("UPDATE_MOUSEOVER_UNIT")
+ok(M.marks.mouseover == 1, "vendor marked on mouseover")
+M.units.target = { name = name }
+db.markIcon = 8
+M.Fire("PLAYER_TARGET_CHANGED")
+ok(M.marks.target == 8, "vendor marked on target with chosen icon")
+M.marks = {}
+M.raid = true
+M.Fire("PLAYER_TARGET_CHANGED")
+ok(M.marks.target == nil, "no marking in a raid")
+M.raid = false
+M.units.target = { name = name, player = true }
+M.Fire("PLAYER_TARGET_CHANGED")
+ok(M.marks.target == nil, "players never marked")
+db.markIcon = 0
+M.units.target = { name = name }
+M.Fire("PLAYER_TARGET_CHANGED")
+ok(M.marks.target == nil, "marker off")
+local markButtons = Find(content, function(f) return f.kind == "Button" and f.scripts.OnClick and f.w == 22 and f.h == 22 end)
+ok(#markButtons == 8, "8 marker buttons, got " .. #markButtons)
+markButtons[8]:Click()
+ok(db.markIcon == 8, "marker button picks skull")
+
+-- Only announce when low
+db.markIcon, db.onlyLow, db.lowAmmo, db.cooldown = 1, true, 200, 10
+M.time = M.time + 3600
+M.ammoCount = 520
+ok(not Enter(1453, "Trade District", 0.5, 0.57), "only when low: quiet with 520 ammo")
+M.ammoCount = 150
+ok(Enter(1453, "Trade District", 0.5, 0.57) and banner.title.text == "Low on Ammo!", "only when low: announced at 150, timeout not used up before")
+M.ammoCount = 0
+M.time = M.time + 3600
+ok(Enter(1453, "Trade District", 0.5, 0.57) and banner.title.text == "Out of Ammo!", "only when low: announced when out")
+M.ammoCount = 520
+Reset()
+SlashCmdList.AMMOFINDER("check")
+ok(banner:IsShown(), "/ammo check ignores only when low")
+db.onlyLow = false
+local onlyLow = Check("Only announce when below")
+ok(onlyLow ~= nil, "only when low checkbox exists")
+onlyLow:Click()
+ok(db.onlyLow == true, "checkbox turns it on")
+db.onlyLow = false
 
 io.write(("%d passed, %d failed" .. string.char(10)):format(passed, failed))
