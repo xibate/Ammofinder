@@ -6,6 +6,7 @@
 
 **Walk into town, find the ammo vendor.**
 
+[![CurseForge downloads](https://img.shields.io/curseforge/dt/1811015?logo=curseforge&label=CurseForge&color=F16436)](https://www.curseforge.com/projects/1811015)
 [![Latest release](https://img.shields.io/github/v/release/xibate/Ammofinder?label=release)](https://github.com/xibate/Ammofinder/releases/latest)
 
 </div>
@@ -70,7 +71,11 @@ The game loads the right `.toc` file for the client you are playing on.
 
 ## Installation
 
-1. Download the latest `AmmoFinder-vX.Y.Z.zip` from [GitHub Releases](https://github.com/xibate/Ammofinder/releases/latest).
+**With the CurseForge app (recommended):** search for **AmmoFinder** and click *Install*. Updates arrive automatically.
+
+**Manually:**
+
+1. Download the latest `AmmoFinder-vX.Y.Z.zip` from [CurseForge](https://www.curseforge.com/projects/1811015) or [GitHub Releases](https://github.com/xibate/Ammofinder/releases/latest).
 2. Extract it into your AddOns folder, for example `World of Warcraft\_forever_\Interface\AddOns\`.
 3. You should end up with `Interface\AddOns\AmmoFinder\AmmoFinder.toc`.
 4. Restart the game or type `/reload`.
@@ -86,7 +91,7 @@ The game loads the right `.toc` file for the client you are playing on.
 - `AmmoFinder/` is the addon folder. `Data.lua` has the vendors and ammo, `AmmoFinder.lua` the banner and logic, `Options.lua` the settings and `Theme.lua` the look, shared with Crescendo and Easy Delete.
 - The icon is the game's own `Interface\Icons\INV_Ammo_Arrow_02`, so the addon ships no textures. `.github/icon.jpg` is the same icon from Wowhead, for this README.
 - `cd tests && npm install && npm test` runs the addon against a mock of the WoW API. It does not replace trying it in game.
-- Releases: run *Publish Addon to CurseForge* from the Actions tab, or push a tag like `v0.4.0` matching `## Version` in `AmmoFinder/AmmoFinder.toc`. It needs a `CF_API_KEY` secret and a `## X-Curse-Project-ID` line in the `.toc` files once the CurseForge project exists.
+- Releases: run *Publish Addon to CurseForge* from the Actions tab, or push a tag like `v0.4.0` matching `## Version` in `AmmoFinder/AmmoFinder.toc`. It needs the `CF_API_KEY` secret (a CurseForge API token). The CurseForge project id is 1811015, in `## X-Curse-Project-ID` in every `.toc` file.
 
 ## Changelog
 
