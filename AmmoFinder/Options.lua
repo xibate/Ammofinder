@@ -9,7 +9,7 @@ local ICON = "Interface\\Icons\\INV_Ammo_Arrow_02"
 local COLUMN_W = 280
 local COLUMN_GAP = 32
 local CONTENT_W = 2 * COLUMN_W + COLUMN_GAP
-local CONTENT_H = 440
+local CONTENT_H = 556
 
 local FILTERS = {
     { key = "any", label = "Any ammo for my weapon",
@@ -18,6 +18,13 @@ local FILTERS = {
       tip = "Only vendors that sell the highest tier you can use: level 1, 10, 25 or 40." },
     { key = "custom", label = "Only the ammo I tick below",
       tip = "Only vendors that sell at least one of the ticked kinds of ammo." },
+}
+
+local STYLES = {
+    { key = "own", label = "AmmoFinder's arrow and map pins",
+      tip = "An arrow on screen, a pin on the world map and minimap and a line to it. Works in combat, and clears itself when you arrive." },
+    { key = "game", label = "The game's map pin",
+      tip = "The game's own map waypoint. It can't be set in combat." },
 }
 
 local contents = {}
@@ -188,9 +195,33 @@ local function BuildContent(parent)
     markNote:SetWordWrap(true)
     markNote:SetText("Clicking Point me there also targets the vendor and puts this marker on them.")
 
+    --How Point me there shows the way: AmmoFinder's own arrow, pins and line, or the game's map pin
+    y = y - 40
+    Place(ns:SectionLabel(content, "Show the way with"), x, y)
+    y = y - 18
+    for _, style in ipairs(STYLES) do
+        local radio = Add(ns:Checkbox(content, style.label,
+            function() return DB().navStyle == style.key end,
+            function() DB().navStyle = style.key end, true))
+        radio.tooltip = function(tt) tt:SetText(style.label, 1, 1, 1); tt:AddLine(style.tip, nil, nil, nil, true) end
+        Place(radio, x, y)
+        y = y - 24
+    end
+    local navArrow = Place(Toggle("Arrow on screen", "navArrow",
+        "An arrow that points at the vendor, with the distance. It turns green when you face them. Drag it to move it, "
+        .. "right-click it to stop."), x + 18, y)
+    y = y - 24
+    local navLine = Place(Toggle("Dotted line on the map and minimap", "navLine",
+        "A moving line from you to the vendor on the world map and the minimap, like a GPS."), x + 18, y)
+    y = y - 30
+    Place(ns:Button(content, "Reset arrow", 136, 24, function() ns.Nav.ResetArrowPosition() end), x, y)
+    Place(ns:Button(content, "Clear the way", 136, 24, function()
+        if ns.Nav.Get() then ns.Nav.Clear(); ns.Print("Waypoint cleared.") end
+    end), x + 144, y)
+
     local commands = Place(ns:Text(content, 11, theme.section), 0, -(CONTENT_H - 16))
     commands:SetWidth(CONTENT_W)
-    commands:SetText("/ammo go  set a waypoint     /ammo check  look again here     /ammo move  move the banner")
+    commands:SetText("/ammo go  show the way     /ammo clear  stop     /ammo check  look again here     /ammo move  move the banner")
 
     function content:Refresh()
         if not DB() then return end
@@ -198,6 +229,8 @@ local function BuildContent(parent)
         for _, check in ipairs(picks) do
             check:SetEnabled(custom)
         end
+        navArrow:SetEnabled(DB().navStyle ~= "game")
+        navLine:SetEnabled(DB().navStyle ~= "game")
         for _, control in ipairs(controls) do
             control:Refresh()
         end

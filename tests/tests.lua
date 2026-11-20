@@ -22,6 +22,9 @@ ok(db.duration == 6 and db.cooldown == 10 and db.bannerY == 260 and db.ammoFilte
 local n = 0 for _ in pairs(db.ammoItems) do n = n + 1 end
 ok(n == 8, "all 8 ammo picked by default")
 ok(M.settingsPanel ~= nil, "settings page registered")
+ok(db.navStyle == "own" and db.navArrow and db.navLine, "own waypoint, arrow and line by default")
+-- The tests below this use the game's map pin; AmmoFinder's own waypoint is tested at the end
+db.navStyle = "game"
 
 -- Data: every vendor has items, and its ammo type agrees with them
 local ARROW = { [2512] = true, [2515] = true, [3030] = true, [11285] = true }
@@ -306,5 +309,85 @@ ok(not sb2:IsShown() and table.concat(M.printed, " "):find("Couldn't target"), "
 M.printed = {}
 local okDebug, err = pcall(SlashCmdList.AMMOFINDER, "debug")
 ok(okDebug and #M.printed >= 5, "/ammo debug prints: " .. tostring(err))
+
+-- AmmoFinder's own waypoint: arrow, minimap pin and line
+local Nav = ns.Nav
+db.navStyle = "own"
+M.mapID, M.pos, M.facing, M.waypoint, M.printed = 1453, { 0.40, 0.50 }, 0, nil, {}
+Nav.Set({ name = "East Vendor", mapID = 1453, x = 50, y = 50 }) -- 100 yards due east
+ok(M.waypoint == nil and Nav.Get() and Nav.Get().name == "East Vendor", "own waypoint set, not the game's")
+ok(Nav.arrow:IsShown() and Nav.arrow.dist.text == "100 yards", "arrow shows the distance: " .. tostring(Nav.arrow.dist.text))
+ok(math.abs(Nav.arrow.icon.rotation + math.pi / 2) < 0.001, "facing north, east is a quarter turn clockwise: " .. tostring(Nav.arrow.icon.rotation))
+M.facing = -math.pi / 2 -- facing east
+Nav.Update()
+ok(math.abs(Nav.arrow.icon.rotation) < 0.001, "facing east, the arrow points straight up")
+local mp = Nav.miniPin
+ok(mp and mp[1] > 0 and math.abs(mp[2]) < 0.001 and not mp[3], "minimap pin to the right, inside the minimap")
+M.pos = { 0.10, 0.50 } -- 400 yards away: on the minimap's edge
+Nav.Update()
+ok(Nav.miniPin[3], "far away: pin on the minimap's edge")
+db.navArrow = false
+Nav.Update()
+ok(not Nav.arrow:IsShown(), "arrow off in settings: hidden")
+db.navArrow = true
+M.continents = { [1453] = 1 }
+Nav.Set({ name = "Far Vendor", mapID = 1453, x = 50, y = 50 })
+M.continents = { [1453] = 1, [1429] = 0 }
+M.mapID = 1429
+Nav.Update()
+ok(Nav.arrow.dist.text == "On another continent", "other continent: says so")
+M.continents, M.mapID = nil, 1453
+Nav.Set({ name = "East Vendor", mapID = 1453, x = 50, y = 50 })
+M.pos = { 0.497, 0.50 }
+Nav.Update()
+ok(Nav.Get() == nil and not Nav.arrow:IsShown() and table.concat(M.printed, " "):find("arrived"), "arriving clears it")
+-- Point me there with the own waypoint, and in combat
+M.pos = { 0.5, 0.57 }
+Enter(1453, "Trade District", 0.4, 0.57) -- 100 yards from the Stovers, so not arrived yet
+M.combat = true
+banner.button:Click()
+M.combat = false
+ok(Nav.Get() ~= nil and M.waypoint == nil, "Point me there in combat: own waypoint works")
+ok(db.navTarget and db.navTarget.name == Nav.Get().name, "waypoint kept for a /reload")
+SlashCmdList.AMMOFINDER("clear")
+ok(Nav.Get() == nil and db.navTarget == nil, "/ammo clear")
+db.navStyle = "game"
+banner.button:Click()
+Enter(1453, "Trade District", 0.5, 0.57)
+banner.button:Click()
+ok(M.waypoint ~= nil and Nav.Get() == nil, "game style: the game's map pin")
+
+-- The close X
+db.cooldown, db.ammoFilter, M.ranged, M.faction = 0, "any", 1000, "Alliance"
+db.ammoItems = { [2512] = true, [2515] = true, [3030] = true, [11285] = true }
+ok(Enter(1453, "Trade District", 0.572, 0.57) and banner.close:IsShown(), "banner has a close button")
+banner.close:Click()
+ok(not banner:IsShown(), "the X closes the banner")
+ns.UnlockBanner()
+ok(not banner.close:IsShown(), "no X while moving the banner")
+ns.LockBanner()
+ok(banner.close:IsShown(), "X back after locking")
+
+-- Weapon merchants: standing next to Marda Weller, the banner still names a bowyer or general goods vendor
+Enter(1453, "Trade District", 0.572, 0.57)
+ok(not banner.sub.text:find("Marda Weller") and banner.sub.text:find("<"), "weapon merchant skipped, title shown: " .. banner.sub.text)
+ok(not table.concat(M.printed, " "):find("Marda Weller"), "weapon merchant left out of chat too")
+-- Sen'jin Village: only Trayexir (weapon merchant) sells Sharp Arrows, so then he is the one
+M.faction, db.ammoFilter, db.ammoItems = "Horde", "custom", { [2515] = true }
+ok(Enter(1411, "Sen'jin Village", 0.563, 0.733) and banner.sub.text:find("Trayexir"), "weapon merchant when no one else sells it")
+M.faction, db.ammoFilter = "Alliance", "any"
+db.ammoItems = { [2512] = true, [2515] = true, [3030] = true, [11285] = true }
+
+-- Opening a built-in vendor's window: no ammo there means they are not announced again; their real stock is used
+M.mapID, M.subzone, M.pos = 1453, "Trade District", { 0.502, 0.574 }
+M.npcName, M.merchant, M.printed = "Frederick Stover", { 159 }, {}
+M.Fire("MERCHANT_SHOW")
+ok(db.seedStock["1453:Frederick Stover"] == false and table.concat(M.printed, " "):find("sells no arrows"), "no ammo in his window: noted")
+M.npcName, M.merchant = "Lina Stover", { 2516 } -- only bullets here
+M.Fire("MERCHANT_SHOW")
+local names = {}
+for _, v in ipairs(ns.CurrentVendors(1453, "Trade District", "arrow", ns.WantedItems("arrow"))) do names[v.name] = true end
+ok(not names["Frederick Stover"] and not names["Lina Stover"] and names["Thurman Mullby"], "vendors without your ammo in their window are skipped")
+M.npcName, M.merchant = nil, {}
 
 io.write(("%d passed, %d failed" .. string.char(10)):format(passed, failed))

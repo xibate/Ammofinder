@@ -50,6 +50,7 @@ function Object:ClearAllPoints() self.points = {} end
 function Object:SetEnabled(e) self.enabled = e and true or false end
 function Object:IsEnabled() return self.enabled end
 function Object:SetAlpha(a) self.alpha = a end
+function Object:SetRotation(r) self.rotation = r end
 function Object:RegisterEvent(e) M.events[e] = self end
 function Object:UnregisterEvent(e) M.events[e] = nil end
 function Object:CreateTexture() return New("Texture", self) end
@@ -134,7 +135,15 @@ C_Map = {
     GetPlayerMapPosition = function() return { GetXY = function() return M.pos[1], M.pos[2] end } end,
     SetUserWaypoint = function(p) M.waypoint = p end,
     CanSetUserWaypointOnMap = function() return true end,
+    -- Every map is 1000 x 667 yards, on continent M.continents[mapID] or 0. World x grows north, y west
+    GetWorldPosFromMapPos = function(mapID, v)
+        return (M.continents or {})[mapID] or 0, CreateVector2D(-v.y * 667, -v.x * 1000)
+    end,
 }
+function CreateVector2D(x, y) return { x = x, y = y, GetXY = function(self) return self.x, self.y end } end
+function GetPlayerFacing() return M.facing or 0 end
+Minimap = New("Frame")
+Minimap.w, Minimap.h = 140, 140
 C_SuperTrack = { SetSuperTrackedUserWaypoint = function() M.supertracked = true end }
 UiMapPoint = { CreateFromCoordinates = function(map, x, y) return { uiMapID = map, x = x, y = y } end }
 Settings = {

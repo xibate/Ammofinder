@@ -17,6 +17,6 @@ function run(file, args) {
 }
 run(path.join(__dirname, 'mock.lua'));
 lauxlib.luaL_dostring(L, to_luastring('AF_NS = {}'));
-for (const f of ['Data.lua', 'Theme.lua', 'Options.lua', 'AmmoFinder.lua']) run(path.join(addon, f), true);
+for (const f of ['Data.lua', 'Theme.lua', 'Options.lua', 'Waypoint.lua', 'AmmoFinder.lua']) run(path.join(addon, f), true);
 run(path.join(__dirname, 'tests.lua'));
 lauxlib.luaL_dostring(L, to_luastring('for _, l in ipairs(MOCK.printed) do if l:find("FAIL") or l:find("passed") then io.write(l, "\\n") end end'));

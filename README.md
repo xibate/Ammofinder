@@ -13,11 +13,12 @@
 
 ---
 
-Running out of arrows or bullets in the middle of nowhere is a hunter rite of passage. AmmoFinder makes sure it happens less: when you walk into a town or city that has an ammo vendor, a banner in the style of Regions of Azeroth's zone titles tells you who sells ammo, where they stand, and how much you have left. One click on **Point me there** puts a waypoint on your map.
+Running out of arrows or bullets in the middle of nowhere is a hunter rite of passage. AmmoFinder makes sure it happens less: when you walk into a town or city that has an ammo vendor, a banner in the style of Regions of Azeroth's zone titles tells you who sells ammo, where they stand, and how much you have left. One click on **Point me there** and an arrow on screen leads you there, with a pin and a dotted line on your map and minimap.
 
 ## Features
 
-- **A banner when you arrive.** The vendor's name and area, your ammo count, and a **Point me there** button that sets a map waypoint (or type `/ammo go`).
+- **A banner when you arrive.** The vendor's name and area, your ammo count, and a **Point me there** button (or type `/ammo go`).
+- **Shows you the way, like a GPS.** An arrow on screen points at the vendor with the distance and turns green when you face them. A pin on the world map and minimap (on the minimap's edge when they are further away) and a moving dotted line from you to them. It works in combat and clears itself when you arrive. Or use the game's own map pin instead.
 - **Only the ammo you use.** Bows and crossbows get arrow vendors, guns get bullet vendors. Nothing shows without a ranged weapon, unless you want it to.
 - **Only the ammo you want.** Any ammo for your weapon, only the best ammo for your level (Rough, Sharp, Razor, Jagged Arrows; Light, Heavy, Solid Shot, Accurate Slugs), or exactly the kinds you tick.
 - **Mark the vendor.** **Point me there** also targets the vendor and puts a raid marker (star by default) on them, so they stand out in a busy city.
@@ -26,7 +27,8 @@ Running out of arrows or bullets in the middle of nowhere is a hunter rite of pa
 - **No spam.** The same town is not announced again for a while (10 minutes by default, your choice).
 - **111 vendors built in.** Every Classic capital and town vendor that sells arrows or bullets, with what they sell, from warcraft.wiki.gg and Wowhead Classic. The full list, with zone, coordinates, faction and ammo, is in [VENDORS.md](VENDORS.md).
 - **Only vendors you can buy from.** The other faction's vendors are never announced. Neutral towns like Booty Bay and Gadgetzan count for both.
-- **Learns as you play.** Open any vendor that sells arrows or bullets and AmmoFinder remembers them, their stock and where they are.
+- **Learns as you play.** Open any vendor that sells arrows or bullets and AmmoFinder remembers them, their stock and where they are. Opening a built-in vendor corrects where they stand and what they sell.
+- **The right vendor.** Bowyers, gunsmiths and general goods vendors come first; a weapon merchant who also sells some ammo only when nobody else there does. The banner shows the vendor's title, and a red X closes it.
 
 ## Settings
 
@@ -42,6 +44,8 @@ Type `/ammo`, or open *Options > AddOns > AmmoFinder*.
 | Only announce when below this | off | Stay quiet while you have enough ammo, and only announce vendors once you are below the low ammo count |
 | Move banner / Reset position | below the zone text | Unlocks the banner so you can drag it anywhere. Right-click it or click *Lock banner* when it's in place |
 | Mark the vendor | star | Raid marker **Point me there** puts on the vendor (it targets them to do so): *Off*, or star to skull |
+| Show the way with | AmmoFinder's arrow and map pins | *AmmoFinder's arrow and map pins*, or *The game's map pin* |
+| Arrow on screen, Dotted line on the map and minimap | on, on | The parts of AmmoFinder's own waypoint. Drag the arrow to move it, right-click it to stop. *Reset arrow* puts it back |
 | Which ammo | Any ammo for my weapon | *Any ammo for my weapon*, *Only the best ammo for my level*, or *Only the ammo I tick below* |
 
 **Show a test banner** (or `/ammo test`) shows an example banner, to try out the length and position.
@@ -51,7 +55,9 @@ Type `/ammo`, or open *Options > AddOns > AmmoFinder*.
 | Command | |
 | --- | --- |
 | `/ammo` | Open the settings |
-| `/ammo go` | Set a waypoint to the last announced vendor |
+| `/ammo go` | Show the way to the last announced vendor |
+| `/ammo clear` | Stop showing the way |
+| `/ammo arrow` | Put the arrow back in its default place |
 | `/ammo check` | Look for a vendor here now, ignoring the timeout |
 | `/ammo test` | Show a test banner |
 | `/ammo where` | Print where you stand (map coordinates), to report a vendor in the wrong place |
@@ -90,13 +96,20 @@ The game loads the right `.toc` file for the client you are playing on.
 
 ## Development
 
-- `AmmoFinder/` is the addon folder. `Data.lua` has the vendors and ammo, `AmmoFinder.lua` the banner and logic, `Options.lua` the settings and `Theme.lua` the look, shared with Crescendo and Easy Delete.
-- The icon is the game's own `Interface\Icons\INV_Ammo_Arrow_02`, so the addon ships no textures. `.github/icon.jpg` is the same icon from Wowhead, for this README.
+- `AmmoFinder/` is the addon folder. `Data.lua` has the vendors and ammo, `AmmoFinder.lua` the banner and logic, `Waypoint.lua` the arrow, pins and map line, `Options.lua` the settings and `Theme.lua` the look, shared with Crescendo and Easy Delete.
+- The icon is the game's own `Interface\Icons\INV_Ammo_Arrow_02`, The arrow, pin and line dot in `AmmoFinder/Media` are drawn by `tests/media.js` (`npm run media` in `tests`). `.github/icon.jpg` is the same icon from Wowhead, for this README.
 - `cd tests && npm install && npm test` runs the addon against a mock of the WoW API. It does not replace trying it in game.
 - `VENDORS.md` is generated from `Data.lua`: run `npm run vendors` in `tests` after changing the data.
 - Releases: run *Publish Addon to CurseForge* from the Actions tab, or push a tag like `v0.4.0` matching `## Version` in `AmmoFinder/AmmoFinder.toc`. It needs the `CF_API_KEY` secret (a CurseForge API token). The CurseForge project id is 1811015, in `## X-Curse-Project-ID` in every `.toc` file.
 
 ## Changelog
+
+### 0.6.0
+- Shows you the way like a GPS: **Point me there** now puts an arrow on screen that points at the vendor with the distance (green when you face them), a pin on the world map and minimap, and a moving dotted line to them. It works in combat, clears itself when you arrive, and stays over a /reload. The game's map pin is still there as a setting. `/ammo clear` stops it.
+- A red X on the banner closes it straight away, without waiting for it to fade.
+- Bowyers, gunsmiths and general goods vendors come first. Weapon merchants who also sell some ammo (the ones you go to for repairs) are only named when nobody else there sells your ammo.
+- The banner shows the vendor's title, like *Frederick Stover <Bow & Arrow Merchant>*. VENDORS.md lists the titles too.
+- Opening a built-in vendor's window now also remembers what they really sell. One who sells no ammo in your game is not announced again.
 
 ### 0.5.2
 - Fixed: Point me there didn't target or mark. Since the 10.0 engine a secure button only acts on the half of the click matching the "cast on key down" setting, and it was registered for mouse-up only.

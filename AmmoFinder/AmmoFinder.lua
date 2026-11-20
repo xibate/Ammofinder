@@ -26,6 +26,13 @@ local DEFAULTS = {
     ammoItems = nil,     -- [itemID] = true, the ammo picked for "custom" (filled with every item the first time)
     vendors = {},        -- learned vendors
     seedPos = {},        -- ["mapID:name"] = { x, y }: where a built-in vendor really stands, from opening their window
+    seedStock = {},      -- ["mapID:name"] = { itemIDs } they really sell, or false when they sell no ammo in this game
+    navStyle = "own",    -- "own": AmmoFinder's arrow, pins and map line (Waypoint.lua), "game": the game's map pin
+    navArrow = true,     -- show the arrow on screen
+    navLine = true,      -- show the dotted line on the world map and minimap
+    arrowX = 0,          -- arrow offset from the middle of the screen (set by dragging it)
+    arrowY = 150,        -- arrow distance from the top of the screen
+    navTarget = nil,     -- the vendor the own waypoint points at, kept over a /reload
 }
 ns.DEFAULTS = DEFAULTS
 
@@ -139,6 +146,12 @@ local function SetWaypoint(v)
         print_("No coordinates known for that vendor yet.")
         return false
     end
+    -- AmmoFinder's own arrow, pins and line (Waypoint.lua). Nothing protected, so this works in combat too
+    if db.navStyle ~= "game" and ns.Nav then
+        ns.Nav.Set(v)
+        print_(("Pointing you to %s (%.1f, %.1f). Right-click the arrow or type /ammo clear to stop."):format(v.name, v.x, v.y))
+        return true
+    end
     if InCombatLockdown() then
         print_("Can't set a waypoint in combat.")
         return false
@@ -204,7 +217,7 @@ banner.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 
 banner.title = banner:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
 banner.title:SetPoint("TOPLEFT", banner.icon, "TOPRIGHT", 14, 0)
-banner.title:SetPoint("RIGHT", banner, "RIGHT", -PAD, 0)
+banner.title:SetPoint("RIGHT", banner, "RIGHT", -PAD - 22, 0) -- room for the close button
 banner.title:SetJustifyH("LEFT")
 banner.title:SetShadowOffset(1, -1)
 
@@ -254,7 +267,7 @@ end)
 banner.button:SetScript("OnEnter", function(self)
     if GameTooltip and banner.vendor then
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-        GameTooltip:SetText("Sets a map waypoint to " .. banner.vendor.name)
+        GameTooltip:SetText("Shows you the way to " .. banner.vendor.name)
         GameTooltip:Show()
     end
     if banner.anim.Pause then banner.anim:Pause(); banner.paused = true end
@@ -367,7 +380,7 @@ end)
 secure:HookScript("OnEnter", function(self)
     if GameTooltip and self.vendor then
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-        GameTooltip:SetText(self.vendor.x and ("Sets a map waypoint to " .. self.vendor.name) or self.vendor.name)
+        GameTooltip:SetText(self.vendor.x and ("Shows you the way to " .. self.vendor.name) or self.vendor.name)
         if self.marks then
             GameTooltip:AddLine("Also targets them and puts your marker on them, when they are close enough to see.",
                 1, 1, 1, true)
@@ -377,6 +390,29 @@ secure:HookScript("OnEnter", function(self)
     if banner.anim.Pause then banner.anim:Pause(); secure.anim:Pause(); banner.paused = true end
 end)
 secure:HookScript("OnLeave", function()
+    if GameTooltip then GameTooltip:Hide() end
+    if banner.paused then banner.paused = false; banner.anim:Play(); secure.anim:Play() end
+end)
+
+-- The game's red X in the top right corner, to close the banner without waiting for it to fade. The banner itself
+-- takes no clicks, but a child button does
+banner.close = CreateFrame("Button", nil, banner, "UIPanelCloseButton")
+banner.close:SetSize(26, 26)
+banner.close:SetPoint("TOPRIGHT", banner, "TOPRIGHT", -2, -2)
+banner.close:SetFrameLevel(banner:GetFrameLevel() + 6)
+banner.close:SetScript("OnClick", function()
+    Dismiss()
+    HideSecure()
+end)
+banner.close:SetScript("OnEnter", function(self)
+    if GameTooltip then
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText("Close")
+        GameTooltip:Show()
+    end
+    if banner.anim.Pause then banner.anim:Pause(); secure.anim:Pause(); banner.paused = true end
+end)
+banner.close:SetScript("OnLeave", function()
     if GameTooltip then GameTooltip:Hide() end
     if banner.paused then banner.paused = false; banner.anim:Play(); secure.anim:Play() end
 end)
@@ -422,6 +458,7 @@ end)
 function ns.UnlockBanner()
     banner.unlocked = true
     banner.move:Show()
+    banner.close:Hide() -- right-click or the button locks it in move mode
     banner:EnableMouse(true)
     ns.PreviewBanner()
     if ns.RefreshOptions then ns:RefreshOptions() end
@@ -430,6 +467,7 @@ end
 function ns.LockBanner()
     banner.unlocked = false
     banner.move:Hide()
+    banner.close:Show()
     banner:EnableMouse(false)
     Dismiss()
     if ns.RefreshOptions then ns:RefreshOptions() end
@@ -469,6 +507,7 @@ local function ShowBanner(v, count, wanted, sells, preview)
     local mark = db.markIcon or 0
     local line = (mark > 0 and ("|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_%d:0|t "):format(mark) or "")
         .. TEXT_CREAM .. v.name .. "|r"
+    if v.title then line = line .. TEXT_TAN .. " <" .. v.title .. ">|r" end
     if v.subzone and v.subzone ~= "" then line = line .. TEXT_TAN .. " \194\183 " .. v.subzone .. "|r" end
     banner.sub:SetText(line)
 
@@ -542,6 +581,16 @@ end
 -- Seed vendors in a city count for the whole city; elsewhere the player has to
 -- be in the vendor's subzone or standing close to them (subzone names in the
 -- seed data come from the wiki and can differ slightly from the client's).
+-- "arrow", "bullet" or "both" for a list of ammo item ids
+local function AmmoOf(itemIDs)
+    local arrow, bullet
+    for _, id in ipairs(itemIDs) do
+        local a = AMMO_BY_ID[id]
+        if a and a.type == "arrow" then arrow = true elseif a and a.type == "bullet" then bullet = true end
+    end
+    return (arrow and bullet) and "both" or (arrow and "arrow" or (bullet and "bullet" or "none"))
+end
+
 local function SeedApplies(v, mapID, subzone, px, py)
     if ns.CITY_MAPS[mapID] then return true end
     if v.subzone and subzone ~= "" and v.subzone:lower() == subzone:lower() then return true end
@@ -562,13 +611,19 @@ local function CurrentVendors(mapID, subzone, wanted, items)
     -- The other faction's vendors won't sell to you (they're usually hostile), so skip them. No faction = neutral
     local function CanBuy(v) return not v.faction or not faction or v.faction == faction end
     local px, py = PlayerPosition(mapID)
-    for _, v in ipairs(ns.SEED[mapID] or {}) do
-        if Matches(v.ammo, wanted) and SellsWanted(v, items) and CanBuy(v)
+    for _, seed in ipairs(ns.SEED[mapID] or {}) do
+        -- What you saw in their window beats Data.lua: Forever moved some maps around and may have changed stock
+        local key = mapID .. ":" .. seed.name
+        local seen, stock = db.seedPos[key], db.seedStock[key]
+        local v = seed
+        if type(stock) == "table" then
+            v = setmetatable({ items = stock, ammo = AmmoOf(stock) }, { __index = seed })
+        end
+        if stock ~= false and Matches(v.ammo, wanted) and SellsWanted(v, items) and CanBuy(v)
             and SeedApplies(v, mapID, subzone, px, py) then
-            -- A position seen in game beats the one shipped in Data.lua (Forever moved some maps around)
-            local seen = db.seedPos[mapID .. ":" .. v.name]
             found[#found + 1] = { name = v.name, subzone = v.subzone, x = seen and seen[1] or v.x,
-                y = seen and seen[2] or v.y, ammo = v.ammo, mapID = mapID, items = v.items }
+                y = seen and seen[2] or v.y, ammo = v.ammo, mapID = mapID, items = v.items, title = v.title,
+                weapons = v.weapons }
         end
     end
     for _, v in ipairs(db.vendors) do
@@ -614,6 +669,14 @@ local function Check(force)
     if not force and announced[key] and now - announced[key] < cooldown then return end
     announced[key] = now
 
+    -- Weapon merchants sell some ammo next to their weapons. Leave them out when a bowyer, gunsmith or general goods
+    -- vendor here sells what you want
+    local dedicated = {}
+    for _, v in ipairs(vendors) do
+        if not v.weapons then dedicated[#dedicated + 1] = v end
+    end
+    if #dedicated > 0 then vendors = dedicated end
+
     -- Prefer a vendor in the player's current subzone, then the nearest one with coordinates.
     local pick, best = vendors[1], nil
     for _, v in ipairs(vendors) do
@@ -646,10 +709,14 @@ local function LearnVendor()
 
     local hasArrow, hasBullet
     local items = {}
-    for i = 1, GetMerchantNumItems() do
+    local complete = true -- every item in the window could be read (not still loading)
+    local count = GetMerchantNumItems() or 0
+    for i = 1, count do
         local link = GetMerchantItemLink(i)
+        if not link then complete = false end
         if link then
             local itemID, _, _, _, _, classID, subClassID = ItemInfoInstant(link)
+            if not classID then complete = false end
             if classID == CLASS_PROJECTILE then
                 if subClassID == SUB_ARROW then hasArrow = true
                 elseif subClassID == SUB_BULLET then hasBullet = true end
@@ -657,8 +724,6 @@ local function LearnVendor()
             end
         end
     end
-    if not (hasArrow or hasBullet) then return end
-
     local mapID = C_Map.GetBestMapForUnit("player")
     if not mapID then return end
     local pos = C_Map.GetPlayerMapPosition(mapID, "player")
@@ -674,10 +739,22 @@ local function LearnVendor()
     local faction = safe(UnitFactionGroup("npc"))
     if faction ~= "Alliance" and faction ~= "Horde" then faction = nil end
 
-    if SeedHas(mapID, name) then -- already shipped in Data.lua: only remember where they really stand
-        if x and y then db.seedPos[mapID .. ":" .. name] = { x, y } end
+    -- Already shipped in Data.lua: remember where they really stand and what they really sell. One who sells no ammo
+    -- in this game (Forever changed some stock) is not announced again
+    if SeedHas(mapID, name) then
+        local key = mapID .. ":" .. name
+        if x and y then db.seedPos[key] = { x, y } end
+        if #items > 0 then
+            db.seedStock[key] = items
+        elseif complete and count > 0 then
+            if db.seedStock[key] ~= false then
+                print_(name .. " sells no arrows or bullets here, so AmmoFinder won't send you to them again.")
+            end
+            db.seedStock[key] = false
+        end
         return
     end
+    if not (hasArrow or hasBullet) then return end
 
     for _, v in ipairs(db.vendors) do
         if v.name == name and v.mapID == mapID then
@@ -713,6 +790,7 @@ function frame:ADDON_LOADED(name)
         for _, a in ipairs(ns.AMMO) do db.ammoItems[a.id] = true end
     end
     ns.ApplyBannerPosition()
+    if ns.Nav then ns.Nav.Init() end
     if ns.AddSettingsPage then ns:AddSettingsPage() end
     self:UnregisterEvent("ADDON_LOADED")
     self:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -761,7 +839,7 @@ local function Toggle(key, label)
     if ns.RefreshOptions then ns:RefreshOptions() end
 end
 
-local HELP = "/ammo opens the settings. Also: check | go | where | move | reset | test | on | off | always | banner | chat | sound | list"
+local HELP = "/ammo opens the settings. Also: check | go | clear | arrow | where | move | reset | test | on | off | always | banner | chat | sound | list"
 
 SLASH_AMMOFINDER1 = "/ammo"
 SLASH_AMMOFINDER2 = "/ammofinder"
@@ -785,6 +863,11 @@ SlashCmdList.AMMOFINDER = function(msg)
         print_("  Marker setting: " .. tostring(db.markIcon) .. "   Vendor: " .. (current and current.name or "none"))
         print_("  Secure button shown: " .. yes(secure:IsShown()) .. "   type: " .. tostring(secure:GetAttribute("type")))
         print_("  Macro: " .. tostring(secure:GetAttribute("macrotext")):gsub("\n", " | "))
+    elseif cmd == "clear" then
+        if ns.Nav and ns.Nav.Get() then ns.Nav.Clear(); print_("Waypoint cleared.") else print_("No waypoint to clear.") end
+    elseif cmd == "arrow" then
+        ns.Nav.ResetArrowPosition()
+        print_("Arrow position reset.")
     elseif cmd == "where" then
         local mapID = C_Map.GetBestMapForUnit("player")
         local x, y

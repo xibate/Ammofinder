@@ -6,10 +6,11 @@
 ## X-Website: https://www.curseforge.com/projects/1811015
 ## X-Curse-Project-ID: 1811015
 ## Author: Xibate
-## Version: 0.5.2
+## Version: 0.6.0
 ## DefaultState: enabled
 ## SavedVariables: AmmoFinderDB
 Data.lua
 Theme.lua
 Options.lua
+Waypoint.lua
 AmmoFinder.lua
