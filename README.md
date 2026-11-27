@@ -28,7 +28,7 @@ Running out of arrows or bullets in the middle of nowhere is a hunter rite of pa
 - **111 vendors built in.** Every Classic capital and town vendor that sells arrows or bullets, with what they sell, from warcraft.wiki.gg and Wowhead Classic. The full list, with zone, coordinates, faction and ammo, is in [VENDORS.md](VENDORS.md).
 - **Only vendors you can buy from.** The other faction's vendors are never announced. Neutral towns like Booty Bay and Gadgetzan count for both.
 - **Learns as you play.** Open any vendor that sells arrows or bullets and AmmoFinder remembers them, their stock and where they are. Opening a built-in vendor corrects where they stand and what they sell.
-- **The right vendor.** Bowyers, gunsmiths and general goods vendors come first; a weapon merchant who also sells some ammo only when nobody else there does. The banner shows the vendor's title, and a red X closes it.
+- **The right vendor.** Bowyers, gunsmiths and general goods vendors come first; a weapon merchant who also sells some ammo only when nobody else there does. The banner shows the vendor's title, a red X closes it, and **Snooze 30 min** keeps AmmoFinder quiet for half an hour.
 
 ## Settings
 
@@ -56,6 +56,8 @@ Type `/ammo`, or open *Options > AddOns > AmmoFinder*.
 | --- | --- |
 | `/ammo` | Open the settings |
 | `/ammo go` | Show the way to the last announced vendor |
+| `/ammo snooze` | No announcements for 30 minutes (`/ammo snooze 60` for an hour) |
+| `/ammo wake` | End the snooze |
 | `/ammo clear` | Stop showing the way |
 | `/ammo arrow` | Put the arrow back in its default place |
 | `/ammo check` | Look for a vendor here now, ignoring the timeout |
@@ -103,6 +105,9 @@ The game loads the right `.toc` file for the client you are playing on.
 - Releases: run *Publish Addon to CurseForge* from the Actions tab, or push a tag like `v0.4.0` matching `## Version` in `AmmoFinder/AmmoFinder.toc`. It needs the `CF_API_KEY` secret (a CurseForge API token). The CurseForge project id is 1811015, in `## X-Curse-Project-ID` in every `.toc` file.
 
 ## Changelog
+
+### 0.6.1
+- A **Snooze 30 min** button on the banner: no banner or chat message for 30 minutes. It lasts over a /reload. `/ammo snooze` does the same (`/ammo snooze 60` for an hour), `/ammo wake` turns it back on, and the settings say when you are snoozed.
 
 ### 0.6.0
 - Shows you the way like a GPS: **Point me there** now puts an arrow on screen that points at the vendor with the distance (green when you face them), a pin on the world map and minimap, and a moving dotted line to them. It works in combat, clears itself when you arrive, and stays over a /reload. The game's map pin is still there as a setting. `/ammo clear` stops it.

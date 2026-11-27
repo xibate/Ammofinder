@@ -33,6 +33,7 @@ local DEFAULTS = {
     arrowX = 0,          -- arrow offset from the middle of the screen (set by dragging it)
     arrowY = 150,        -- arrow distance from the top of the screen
     navTarget = nil,     -- the vendor the own waypoint points at, kept over a /reload
+    snoozeUntil = nil,   -- time() until which nothing is announced (the banner's Snooze button, /ammo snooze)
 }
 ns.DEFAULTS = DEFAULTS
 
@@ -417,6 +418,55 @@ banner.close:SetScript("OnLeave", function()
     if banner.paused then banner.paused = false; banner.anim:Play(); secure.anim:Play() end
 end)
 
+-- Snooze: no announcements for a while. Kept in time() (real clock seconds), so it lasts over a /reload or relog
+local SNOOZE_MINUTES = 30
+local function Now() return (time and time()) or GetTime() end
+
+function ns.SnoozeLeft()
+    local left = db and db.snoozeUntil and (db.snoozeUntil - Now())
+    if left and left > 0 then return left end
+    return nil
+end
+
+function ns.Snooze(minutes)
+    minutes = minutes or SNOOZE_MINUTES
+    db.snoozeUntil = Now() + minutes * 60
+    print_(("Snoozed for %d minutes. Type |cffffff00/ammo wake|r to turn it back on."):format(minutes))
+    if ns.RefreshOptions then ns:RefreshOptions() end
+end
+
+function ns.Wake()
+    local was = ns.SnoozeLeft()
+    db.snoozeUntil = nil
+    print_(was and "Awake again: ammo vendors are announced." or "AmmoFinder wasn't snoozed.")
+    if ns.RefreshOptions then ns:RefreshOptions() end
+end
+
+-- A small button in the bottom right corner, next to Point me there
+banner.snooze = CreateFrame("Button", nil, banner, "UIPanelButtonTemplate")
+banner.snooze:SetSize(104, 22)
+banner.snooze:SetPoint("BOTTOMRIGHT", banner, "BOTTOMRIGHT", -PAD + 4, PAD + 2)
+banner.snooze:SetFrameLevel(banner:GetFrameLevel() + 6)
+banner.snooze:SetText(("Snooze %d min"):format(SNOOZE_MINUTES))
+banner.snooze:SetScript("OnClick", function()
+    if not banner.preview then ns.Snooze() end
+    Dismiss()
+    HideSecure()
+end)
+banner.snooze:SetScript("OnEnter", function(self)
+    if GameTooltip then
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:SetText(("Snooze for %d minutes"):format(SNOOZE_MINUTES))
+        GameTooltip:AddLine("No banner or chat message until then. /ammo wake turns it back on.", 1, 1, 1, true)
+        GameTooltip:Show()
+    end
+    if banner.anim.Pause then banner.anim:Pause(); secure.anim:Pause(); banner.paused = true end
+end)
+banner.snooze:SetScript("OnLeave", function()
+    if GameTooltip then GameTooltip:Hide() end
+    if banner.paused then banner.paused = false; banner.anim:Play(); secure.anim:Play() end
+end)
+
 function ns.ApplyBannerPosition()
     banner:ClearAllPoints()
     banner:SetPoint("TOP", UIParent, "TOP", db and db.bannerX or DEFAULTS.bannerX, -(db and db.bannerY or DEFAULTS.bannerY))
@@ -459,6 +509,7 @@ function ns.UnlockBanner()
     banner.unlocked = true
     banner.move:Show()
     banner.close:Hide() -- right-click or the button locks it in move mode
+    banner.snooze:Hide()
     banner:EnableMouse(true)
     ns.PreviewBanner()
     if ns.RefreshOptions then ns:RefreshOptions() end
@@ -468,6 +519,7 @@ function ns.LockBanner()
     banner.unlocked = false
     banner.move:Hide()
     banner.close:Show()
+    banner.snooze:Show()
     banner:EnableMouse(false)
     Dismiss()
     if ns.RefreshOptions then ns:RefreshOptions() end
@@ -534,7 +586,6 @@ local function ShowBanner(v, count, wanted, sells, preview)
     -- Out of combat the secure button (waypoint, target and mark) takes the plain button's place
     local usingSecure = ns.ShowSecure(v, label, preview, banner:GetHeight())
     banner.button:SetShown(hasCoords and not usingSecure)
-    if not hasCoords and not usingSecure then Layout(false) end
 
     banner.anim:Stop()
     if banner.unlocked then
@@ -641,6 +692,7 @@ local function Check(force)
         if force then print_("AmmoFinder is off. Type /ammo on to enable it.") end
         return
     end
+    if not force and ns.SnoozeLeft() then return end
     local wanted = EquippedAmmoType()
     if not wanted and not db.always and not force then return end
 
@@ -839,7 +891,7 @@ local function Toggle(key, label)
     if ns.RefreshOptions then ns:RefreshOptions() end
 end
 
-local HELP = "/ammo opens the settings. Also: check | go | clear | arrow | where | move | reset | test | on | off | always | banner | chat | sound | list"
+local HELP = "/ammo opens the settings. Also: check | go | snooze | wake | clear | arrow | where | move | reset | test | on | off | always | banner | chat | sound | list"
 
 SLASH_AMMOFINDER1 = "/ammo"
 SLASH_AMMOFINDER2 = "/ammofinder"
@@ -863,6 +915,10 @@ SlashCmdList.AMMOFINDER = function(msg)
         print_("  Marker setting: " .. tostring(db.markIcon) .. "   Vendor: " .. (current and current.name or "none"))
         print_("  Secure button shown: " .. yes(secure:IsShown()) .. "   type: " .. tostring(secure:GetAttribute("type")))
         print_("  Macro: " .. tostring(secure:GetAttribute("macrotext")):gsub("\n", " | "))
+    elseif cmd == "snooze" then
+        ns.Snooze(tonumber((msg or ""):match("snooze%s+(%d+)")))
+    elseif cmd == "wake" then
+        ns.Wake()
     elseif cmd == "clear" then
         if ns.Nav and ns.Nav.Get() then ns.Nav.Clear(); print_("Waypoint cleared.") else print_("No waypoint to clear.") end
     elseif cmd == "arrow" then

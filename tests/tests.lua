@@ -390,4 +390,27 @@ for _, v in ipairs(ns.CurrentVendors(1453, "Trade District", "arrow", ns.WantedI
 ok(not names["Frederick Stover"] and not names["Lina Stover"] and names["Thurman Mullby"], "vendors without your ammo in their window are skipped")
 M.npcName, M.merchant = nil, {}
 
+-- Snooze: the banner's button stops announcements for 30 minutes, /ammo wake ends it
+db.cooldown, db.ammoFilter, M.ranged, M.faction, db.enabled = 0, "any", 1000, "Alliance", true
+ok(Enter(1453, "Trade District", 0.6, 0.6) and banner.snooze:IsShown(), "banner has a snooze button")
+banner.snooze:Click()
+ok(not banner:IsShown() and ns.SnoozeLeft() and math.abs(ns.SnoozeLeft() - 1800) < 1, "snooze closes the banner, 30 min")
+ok(not Enter(1453, "Trade District", 0.6, 0.6), "quiet while snoozed")
+SlashCmdList.AMMOFINDER("check")
+ok(banner:IsShown(), "/ammo check still looks while snoozed")
+M.time = M.time + 29 * 60
+ok(not Enter(1453, "Trade District", 0.6, 0.6), "still quiet after 29 min")
+M.time = M.time + 2 * 60
+ok(Enter(1453, "Trade District", 0.6, 0.6) and not ns.SnoozeLeft(), "announced again after 31 min")
+SlashCmdList.AMMOFINDER("snooze 5")
+ok(math.abs(ns.SnoozeLeft() - 300) < 1, "/ammo snooze 5")
+SlashCmdList.AMMOFINDER("wake")
+ok(not ns.SnoozeLeft() and Enter(1453, "Trade District", 0.6, 0.6), "/ammo wake")
+SlashCmdList.AMMOFINDER("test")
+banner.snooze:Click()
+ok(not banner:IsShown() and not ns.SnoozeLeft(), "snooze on the test banner only closes it")
+ns.UnlockBanner()
+ok(not banner.snooze:IsShown(), "no snooze button while moving")
+ns.LockBanner()
+
 io.write(("%d passed, %d failed" .. string.char(10)):format(passed, failed))

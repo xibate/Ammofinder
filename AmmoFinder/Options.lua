@@ -253,6 +253,10 @@ local function BuildContent(parent)
         if DB().onlyLow and DB().lowAmmo == 0 then
             text = "Only when low is on but the low ammo count is off, so nothing will be announced. " .. text
         end
+        local snoozed = ns.SnoozeLeft and ns.SnoozeLeft()
+        if snoozed then
+            text = ("Snoozed for %d more min. Type /ammo wake to turn it back on. "):format(math.ceil(snoozed / 60)) .. text
+        end
         if not DB().enabled then
             text = "AmmoFinder is off. " .. text
         end

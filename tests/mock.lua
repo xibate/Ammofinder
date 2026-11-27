@@ -102,6 +102,7 @@ SOUNDKIT = { IGQUESTLOG_OPEN = 875 }
 function wipe(t) for k in pairs(t) do t[k] = nil end return t end
 function print(...) local p = {} for i = 1, select("#", ...) do p[#p + 1] = tostring((select(i, ...))) end; table.insert(M.printed, table.concat(p, " ")) end
 function GetTime() return M.time end
+function time() return M.time end
 function InCombatLockdown() return M.combat == true end
 SecureCmdList = { TARGET_MARKER = function() end }
 function UnitLevel() return M.level end
