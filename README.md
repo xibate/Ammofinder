@@ -25,7 +25,7 @@ Running out of arrows or bullets in the middle of nowhere is a hunter rite of pa
 - **Put it where you like.** Drag the banner anywhere on screen.
 - **Low ammo warning.** The banner turns red and says *Low on Ammo!* or *Out of Ammo!* below a count you choose. Or only hear about vendors when you are running low.
 - **No spam.** The same town is not announced again for a while (10 minutes by default, your choice).
-- **111 vendors built in.** Every Classic capital and town vendor that sells arrows or bullets, with what they sell, from warcraft.wiki.gg and Wowhead Classic. The full list, with zone, coordinates, faction and ammo, is in [VENDORS.md](VENDORS.md).
+- **126 vendors built in.** Every capital and town vendor that sells arrows or bullets, including the new WoW Forever zones (Riverglades, Zephras Isle, Mount Hyjal), with their coordinates on Forever's maps and what they sell there, from Forever's game data. The full list, with zone, coordinates, faction and ammo, is in [VENDORS.md](VENDORS.md).
 - **Only vendors you can buy from.** The other faction's vendors are never announced. Neutral towns like Booty Bay and Gadgetzan count for both.
 - **Learns as you play.** Open any vendor that sells arrows or bullets and AmmoFinder remembers them, their stock and where they are. Opening a built-in vendor corrects where they stand and what they sell.
 - **The right vendor.** Bowyers, gunsmiths and general goods vendors come first; a weapon merchant who also sells some ammo only when nobody else there does. The banner shows the vendor's title, a red X closes it, and **Snooze 30 min** keeps AmmoFinder quiet for half an hour.
@@ -92,8 +92,9 @@ The game loads the right `.toc` file for the client you are playing on.
 
 ## Known limitations
 
-- Forever reshaped the Stormwind, Redridge, Eastern Plaguelands and Mulgore maps, so waypoints there can be off. Open a built-in vendor's window once and AmmoFinder uses where you stood from then on.
-- Vendor stock comes from Wowhead Classic. Vendors you learned before 0.4.0 have no stock saved, so they are announced whatever ammo you picked, until you open their window again.
+- Vendors and coordinates come from WoW Forever's game data as outof.games shows it (1.60.1). If one is off, open their window once and AmmoFinder uses where you stood and what they sold from then on.
+- Vendors in Forever's new zones have no subzone, so outside a city they are announced when you come close to them rather than when you enter their town.
+- Vendors you learned before 0.4.0 have no stock saved, so they are announced whatever ammo you picked, until you open their window again.
 - A learned vendor's position is where you stood when you opened their window.
 
 ## Development
@@ -107,6 +108,9 @@ The game loads the right `.toc` file for the client you are playing on.
 ## Changelog
 
 ### 0.6.1
+- Vendors in WoW Forever's new zones: 5 in the Riverglades, 4 on Zephras Isle and 3 on Mount Hyjal. Found by the zone's name, since Forever's new map ids aren't known outside the game.
+- Every built-in vendor checked against Forever's own game data: their coordinates now fit Forever's reshaped maps (all of Stormwind, Redridge, Mulgore and Eastern Plaguelands were off, not only Thurman Mullby), and what they sell is Forever's stock.
+- Added Burkrum (Splintertree Post, Ashenvale), Aemara (Alterac Mountains) and Mazk Snipeshot (Booty Bay) back, who sell ammo in Forever. Burkrum is an armor merchant, so like the weapon merchants he is only named when nobody else there sells your ammo.
 - A **Snooze 30 min** button on the banner: no banner or chat message for 30 minutes. It lasts over a /reload. `/ammo snooze` does the same (`/ammo snooze 60` for an hour), `/ammo wake` turns it back on, and the settings say when you are snoozed.
 
 ### 0.6.0

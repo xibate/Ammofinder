@@ -38,7 +38,17 @@ for map, list in pairs(ns.SEED) do
         if t ~= v.ammo then bad[#bad + 1] = v.name end
     end
 end
-ok(vendors == 111, "111 vendors, got " .. vendors)
+ok(vendors == 114, "114 vendors, got " .. vendors)
+local newZones = 0
+for _, list in pairs(ns.SEED_BY_NAME) do
+    for _, v in ipairs(list) do
+        newZones = newZones + 1
+        local a, b = false, false
+        for _, id in ipairs(v.items) do if ARROW[id] then a = true else b = true end end
+        if (a and b and "both" or (a and "arrow" or "bullet")) ~= v.ammo then bad[#bad + 1] = v.name end
+    end
+end
+ok(newZones == 12, "12 vendors in Forever's new zones, got " .. newZones)
 ok(#bad == 0, "ammo type matches items: " .. table.concat(bad, ", "))
 
 -- No weapon: nothing
@@ -412,5 +422,16 @@ ok(not banner:IsShown() and not ns.SnoozeLeft(), "snooze on the test banner only
 ns.UnlockBanner()
 ok(not banner.snooze:IsShown(), "no snooze button while moving")
 ns.LockBanner()
+
+-- Forever's new zones: found by the map's name. The Riverglades' goblin town is neutral
+M.mapNames = { [2500] = "The Riverglades" }
+db.cooldown, db.ammoFilter, M.ranged, M.faction = 0, "any", 1000, "Horde"
+db.ammoItems = { [2512] = true, [2515] = true, [3030] = true, [11285] = true }
+ok(Enter(2500, "Bogwater", 0.771, 0.53) and (banner.sub.text:find("Friz Frazzlespark") or banner.sub.text:find("Grizzek")),
+    "Riverglades vendor found by map name: " .. banner.sub.text)
+ok(not Enter(2500, "Bogwater", 0.2, 0.2), "far from the Riverglades vendors: quiet")
+M.mapNames = { [2501] = "Shen'dralas" }
+ok(not Enter(2501, "", 0.5, 0.5), "a new zone with no ammo vendors: quiet")
+M.faction, M.mapNames = "Alliance", nil
 
 io.write(("%d passed, %d failed" .. string.char(10)):format(passed, failed))

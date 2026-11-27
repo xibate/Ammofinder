@@ -649,8 +649,29 @@ local function SeedApplies(v, mapID, subzone, px, py)
     return d ~= nil and d <= NEAR_DISTANCE
 end
 
+-- The built-in vendors on a map. Forever's new zones are listed by name (their map ids are only known in game), so a
+-- map with no ids in Data.lua is looked up by its name once and remembered
+local byMapName = {}
+local function NormalName(name)
+    return (name:lower():gsub("^the ", ""):gsub("[^%a]", ""))
+end
+for name, list in pairs(ns.SEED_BY_NAME or {}) do byMapName[NormalName(name)] = list end
+
+local byMapID = {} -- [mapID] = list from SEED_BY_NAME, or false
+local function SeedList(mapID)
+    if not mapID then return {} end
+    if ns.SEED[mapID] then return ns.SEED[mapID] end
+    if byMapID[mapID] == nil then
+        local info = C_Map.GetMapInfo and C_Map.GetMapInfo(mapID)
+        local name = info and safe(info.name)
+        byMapID[mapID] = (name and byMapName[NormalName(name)]) or false
+    end
+    return byMapID[mapID] or {}
+end
+ns.SeedList = SeedList
+
 local function SeedHas(mapID, name)
-    for _, v in ipairs(ns.SEED[mapID] or {}) do
+    for _, v in ipairs(SeedList(mapID)) do
         if v.name == name then return true end
     end
     return false
@@ -662,7 +683,7 @@ local function CurrentVendors(mapID, subzone, wanted, items)
     -- The other faction's vendors won't sell to you (they're usually hostile), so skip them. No faction = neutral
     local function CanBuy(v) return not v.faction or not faction or v.faction == faction end
     local px, py = PlayerPosition(mapID)
-    for _, seed in ipairs(ns.SEED[mapID] or {}) do
+    for _, seed in ipairs(SeedList(mapID)) do
         -- What you saw in their window beats Data.lua: Forever moved some maps around and may have changed stock
         local key = mapID .. ":" .. seed.name
         local seen, stock = db.seedPos[key], db.seedStock[key]

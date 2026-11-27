@@ -136,6 +136,7 @@ C_Map = {
     GetPlayerMapPosition = function() return { GetXY = function() return M.pos[1], M.pos[2] end } end,
     SetUserWaypoint = function(p) M.waypoint = p end,
     CanSetUserWaypointOnMap = function() return true end,
+    GetMapInfo = function(mapID) local n = (M.mapNames or {})[mapID]; return n and { mapID = mapID, name = n } or nil end,
     -- Every map is 1000 x 667 yards, on continent M.continents[mapID] or 0. World x grows north, y west
     GetWorldPosFromMapPos = function(mapID, v)
         return (M.continents or {})[mapID] or 0, CreateVector2D(-v.y * 667, -v.x * 1000)
